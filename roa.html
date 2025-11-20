@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>R.O.A. – Carga desde Excel, Prefill y Generación ODT</title>
+
+  <script src="./jszip.min.js"></script>
+  <script src="./FileSaver.min.js"></script>
+  <script src="./xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="./plantilla_roa.js"></script>
+
+  <style>
+    :root{
+      --bg:#0f172a; --panel:#0b1222; --text:#e5e7eb; --border:#243042;
+      --primary:#2563eb; --primary-2:#1d4ed8;
+      --ok:#0ea5e9; --good:#16a34a; --warn:#1d4ed8;
+    }
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      font-family:Segoe UI, Roboto, Arial, sans-serif;
+      background:#0f172a url('fondo_policia.jpg') no-repeat center center fixed;
+      background-size:cover;
+      color:var(--text);
+    }
+    header{ padding:12px; text-align:center; background:rgba(0,0,0,0.6); }
+    h1{ margin:0; font-size:20px; }
+
+    .bridge{
+      display:none;
+      background:#052c3b;
+      border-bottom:1px solid #0b3f55;
+      color:#c8f0ff;
+      padding:8px 14px;
+      text-align:center;
+      font-weight:700;
+      letter-spacing:.3px;
+    }
+    .bridge.show{ display:block; }
+
+    main{ display:flex; justify-content:center; padding:12px; }
+    .wrap{
+      width:100%; max-width:900px; background:rgba(11,18,34,0.60);
+      border:1px solid var(--border); border-radius:12px; padding:14px;
+    }
+    h2{
+      margin:16px 0 6px; text-align:center; font-size:14px; text-transform:uppercase; color:#b9d3ff;
+      border-bottom:2px solid #1f3b69; padding-bottom:4px;
+    }
+    .grid{ display:grid; gap:8px; grid-template-columns: repeat(1, 1fr); }
+    @media (min-width:600px){ .grid{ grid-template-columns: repeat(2, 1fr); } }
+    @media (min-width:900px){ .grid{ grid-template-columns: repeat(3, 1fr); } }
+    .card{
+      background:rgba(17,24,39,0.45); border:1px solid var(--border); border-radius:10px;
+      padding:8px; display:flex; flex-direction:column; gap:4px;
+    }
+    label{
+      font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; color:#9cc2ff;
+    }
+    input, select, textarea{
+      width:100%; padding:7px 8px; border-radius:8px; border:1px solid #2a3955;
+      background:rgba(248,250,252,0.70); color:#0b1222; font-size:13px; outline:none;
+    }
+    textarea{ min-height:64px; resize:vertical; }
+    .full{ grid-column:1 / -1; }
+    #message{ margin-top:12px; text-align:center; font-weight:700; color:#bfe5ff; min-height:24px; }
+    .actions{
+      width:90%; max-width:420px; margin:16px auto; display:flex; flex-direction:column; align-items:center; gap:10px;
+    }
+    .btn{
+      width:100%; border:1px solid var(--primary-2); color:#fff; padding:12px 16px;
+      border-radius:10px; font-weight:800; text-transform:uppercase; letter-spacing:.6px; cursor:pointer;
+    }
+    .btn.secondary{ background:#006400; border-color:#004d00; }
+    .btn.ok{ background:#0f766e; border-color:#115e59; }
+    .btn.warn{ background:#1d4ed8; border-color:#1e40af; }
+    .mini{ display:none; }
+    .btn.danger{ background:darkred; border-color:#6b0000; color:#fff; }
+    .btn.danger:hover{ filter:brightness(1.05); }
+  </style>
+</head>
+<body>
+  <header><h1>RESUMEN OPERATIVO ARCHIVA (R.O.A.)</h1></header>
+  <div id="bridgeBanner" class="bridge">✔ Datos importados desde Registro</div>
+
+  <main>
+    <div class="wrap">
+      <h2>🪪 Identificación</h2>
+      <div class="grid">
+        <div class="card">
+          <label>Tipo de documento</label>
+          <select id="tipoDocumento" name="TIPO DOCUMENTO">
+            <option value="INDOCUMENTADO/A">INDOCUMENTADO/A</option>
+            <option value="DNI">DNI</option>
+            <option value="NIE">NIE</option>
+            <option value="PASAPORTE">PASAPORTE</option>
+            <option value="OTRO">OTRO</option>
+          </select>
+          <input type="text" id="tipoDocumentoOtro" placeholder="Especificar otro" style="display:none;">
+        </div>
+        <div class="card"><label>Número de documento</label><input id="numeroDocumento" name="NÚMERO DE DOCUMENTO"></div>
+        <div class="card"><label>Nombre</label><input name="NOMBRE"></div>
+        <div class="card"><label>Primer apellido</label><input name="PRIMER APELLIDO"></div>
+        <div class="card"><label>Segundo apellido</label><input name="SEGUNDO APELLIDO"></div>
+        <div class="card"><label>Fecha de nacimiento</label><input name="FECHA DE NACIMIENTO" placeholder="DD/MM/AAAA"></div>
+        <div class="card"><label>Lugar de nacimiento</label><input name="LUGAR DE NACIMIENTO"></div>
+        <div class="card"><label>Provincia</label><input name="PROVINCIA"></div>
+        <div class="card"><label>País</label><input name="PAÍS"></div>
+        <div class="card"><label>Nacionalidad</label><input name="NACIONALIDAD"></div>
+        <div class="card"><label>Nombre de los padres</label><input name="NOMBRE DE LOS PADRES"></div>
+        <div class="card"><label>Profesión</label><input name="PROFESIÓN"></div>
+      </div>
+
+      <h2>📂 Entorno y Actividad</h2>
+      <div class="grid">
+        <div class="card"><label>Teléfono</label><input name="TELÉFONO"></div>
+        <div class="card"><label>Armas</label><input name="ARMAS"></div>
+        <div class="card"><label>Alias</label><input name="ALIAS"></div>
+        <div class="card"><label>Consortes</label><input name="CONSORTES"></div>
+        <div class="card"><label>Domicilios</label><input name="DOMICILIOS"></div>
+        <div class="card"><label>Empresas</label><input name="EMPRESAS"></div>
+        <div class="card"><label>Lugares de actuación</label><input name="LUGARES DE ACTUACION"></div>
+        <div class="card"><label>Lugares de frecuencia</label><input name="LUGARES DE FRECUENCIA"></div>
+        <div class="card"><label>Organización</label><input name="ORGANIZACION"></div>
+      </div>
+
+      <h2>🧬 Rasgos físicos</h2>
+      <div class="grid">
+        <div class="card">
+          <label>Sexo</label>
+          <select id="sexo" name="SEXO">
+            <option value="">--</option>
+            <option value="H">Masculino</option>
+            <option value="M">Femenino</option>
+          </select>
+        </div>
+        <div class="card"><label>Talla</label><input name="TALLA"></div>
+        <div class="card"><label>Complexión</label><input name="COMPLEXION"></div>
+        <div class="card"><label>Raza</label><input name="RAZA"></div>
+        <div class="card"><label>Acento</label><input name="ACENTO"></div>
+        <div class="card"><label>Cejas</label><input name="CEJAS"></div>
+        <div class="card"><label>Labios</label><input name="LABIOS"></div>
+        <div class="card"><label>Mentón</label><input name="MENTON"></div>
+        <div class="card"><label>Cara</label><input name="CARA"></div>
+        <div class="card"><label>Pelo</label><input name="PELO"></div>
+        <div class="card"><label>Ojos</label><input name="OJOS"></div>
+        <div class="card"><label>Nariz</label><input name="NARIZ"></div>
+        <div class="card"><label>Orejas</label><input name="OREJAS"></div>
+        <div class="card full"><label>Marcas</label><textarea name="MARCAS"></textarea></div>
+      </div>
+
+      <h2>🚗 Otros</h2>
+      <div class="grid">
+        <div class="card"><label>Usas</label><input name="USAS"></div>
+        <div class="card"><label>Vehículos</label><input name="VEHICULOS"></div>
+      </div>
+
+      <h2>📝 Observaciones</h2>
+      <div class="grid">
+        <div class="card"><label>Diligencias</label><input name="DILIGENCIAS"></div>
+        <div class="card"><label>Fecha diligencias</label><input name="FECHA DILIGENCIAS" placeholder="DD/MM/AAAA"></div>
+        <div class="card full"><label>Resumen diligencias</label><textarea name="RESUMEN DILIGENCIAS"></textarea></div>
+      </div>
+
+      <h2>👮 Finalización</h2>
+      <div class="grid">
+        <div class="card"><label>Funcionario emisor</label><input name="FUNCIONARIO EMISOR"></div>
+        <div class="card"><label>Fecha de cumplimentación</label><input name="FECHA DE CUMPLIMENTACION" placeholder="DD/MM/AAAA"></div>
+      </div>
+
+      <div id="message"></div>
+    </div>
+  </main>
+
+  <div class="actions">
+    <input type="file" id="fileInputJSON" class="mini" accept=".json"/>
+    <button type="button" class="btn ok" onclick="generarROA()">⬇️ Descargar R.O.A.</button>
+    <button type="button" class="btn secondary" onclick="cargarJSON(event)">📁 Cargar JSON</button>
+    <button type="button" class="btn warn" onclick="location.reload()">⟲ Refrescar</button>
+    <button type="button" class="btn danger" onclick="location.href='../Reg Json 8Nov.html'">⟲ Iniciar nuevo detenido</button>
+  </div>
+
+<script>
+const NFKD = s => (s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+function normalizeKey(str){
+  return str ? NFKD(str).toUpperCase().replace(/[^A-Z0-9]/g,"").trim() : "";
+}
+function ddmmyyyy_from_excel(v){
+  if(typeof v === "number"){
+    const epoch = new Date(Date.UTC(1899,11,30));
+    const d = new Date(epoch.getTime() + v*86400000);
+    const dd = String(d.getUTCDate()).padStart(2,'0');
+    const mm = String(d.getUTCMonth()+1).padStart(2,'0');
+    const yy = d.getUTCFullYear();
+    return `${dd}/${mm}/${yy}`;
+  }
+  const s = String(v||"").trim();
+  let m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+  if(m){ const dd=m[1].padStart(2,'0'), mm=m[2].padStart(2,'0'), yyyy=m[3].length===2?`20${m[3]}`:m[3]; return `${dd}/${mm}/${yyyy}`; }
+  m = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+  if(m){ const yyyy=m[1], mm=String(m[2]).padStart(2,'0'), dd=String(m[3]).padStart(2,'0'); return `${dd}/${mm}/${yyyy}`; }
+  return s;
+}
+function separarApellidos(s){
+  s = String(s||"").trim();
+  if(!s) return {primer:"",segundo:""};
+  const p = s.split(/\s+/);
+  return {primer:p[0]||"", segundo:p.slice(1).join(" ")};
+}
+function findFieldByName(name){ return document.querySelector(`[name="${name}"]`); }
+function setTipoDocumentoDesdeExcel(v){
+  const sel=document.getElementById("tipoDocumento");
+  const otro=document.getElementById("tipoDocumentoOtro");
+  if(!sel) return;
+  const U=String(v||"").toUpperCase().trim();
+  if(["DNI","NIE","PASAPORTE","INDOCUMENTADO/A"].includes(U)){
+    sel.value=U; if(otro){otro.style.display="none"; otro.value="";}
+  }else{
+    sel.value="OTRO"; if(otro){otro.style.display="block"; otro.value=v;}
+  }
+  sel.dispatchEvent(new Event("change",{bubbles:true}));
+}
+function setNumeroDocumentoDesdeExcel(v){
+  const el=document.getElementById("numeroDocumento");
+  if(el) el.value=(v??"").toString().trim();
+}
+function sexoToHM(v){
+  const s = String(v||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase().trim();
+  if (s === "H" || s.includes("MASC") || s.includes("VAR") || s.includes("HOMB")) return "H";
+  if (s === "M" || s.includes("FEM")  || s.includes("MUJ")) return "M";
+  return "";
+}
+function applyPrefillObject(obj){
+  if(!obj || typeof obj!=="object") return 0;
+  let count=0;
+  const nombre = obj.NOMBRE ?? obj.Nombre;
+  if (nombre != null) {
+    const e = findFieldByName("NOMBRE");
+    if (e){ e.value = nombre; count++; }
+  }
+  const ap1 = obj["PRIMER APELLIDO"];
+  const ap2 = obj["SEGUNDO APELLIDO"];
+  if (ap1 != null || ap2 != null){
+    const e1 = findFieldByName("PRIMER APELLIDO");
+    const e2 = findFieldByName("SEGUNDO APELLIDO");
+    if (e1 && ap1 != null){ e1.value = ap1; count++; }
+    if (e2 && ap2 != null){ e2.value = ap2; count++; }
+  }
+  if (obj.APELLIDOS && !(ap1 || ap2)){
+    const {primer, segundo} = separarApellidos(obj.APELLIDOS);
+    const e1=findFieldByName("PRIMER APELLIDO");
+    const e2=findFieldByName("SEGUNDO APELLIDO");
+    if(e1){ e1.value=primer; count++; }
+    if(e2){ e2.value=segundo; count++; }
+  }
+  const td = obj["TIPO DOCUMENTO"] || obj["TIPO DOCUMENTO_OPCION"];
+  if(td){ setTipoDocumentoDesdeExcel(td); count++; }
+  if(obj["NºDOCUMENTO"] || obj["NÚMERO DE DOCUMENTO"]){
+    setNumeroDocumentoDesdeExcel(obj["NºDOCUMENTO"] || obj["NÚMERO DE DOCUMENTO"]); count++;
+  }
+  if (obj.SEXO != null || obj["SEXO_OPCION"] != null){
+    const sel=document.getElementById("sexo");
+    const raw = obj.SEXO ?? obj["SEXO_OPCION"];
+    if(sel){
+      sel.value = sexoToHM(raw);
+      if(sel.value) count++;
+    }
+  }
+  const directKeys = [
+    "NACIONALIDAD","PAÍS","PAIS","PROFESIÓN","LUGAR DE NACIMIENTO",
+    "FECHA DE NACIMIENTO","TELÉFONO","DILIGENCIAS","FECHA DILIGENCIAS",
+    "RESUMEN DILIGENCIAS","FUNCIONARIO EMISOR","FECHA DE CUMPLIMENTACION",
+    "DOMICILIOS","PROVINCIA","NOMBRE DE LOS PADRES"
+  ];
+  for(const k of directKeys){
+    const v = obj[k];
+    if(v!=null){
+      const el = findFieldByName(k==="PAIS" ? "PAÍS" : k);
+      if(el){ el.value = (k.startsWith("FECHA") ? ddmmyyyy_from_excel(v) : v); count++; }
+    }
+  }
+  const paisEl = findFieldByName("PAÍS");
+  const nacEl = findFieldByName("NACIONALIDAD");
+  if(paisEl && !paisEl.value && nacEl && nacEl.value){ paisEl.value = nacEl.value; count++; }
+  return count;
+}
+function tryPrefillFromSession(){
+  try{
+    const rawPrimary = sessionStorage.getItem("ROA_PAYLOAD");
+    const rawLegacy  = rawPrimary ? null : sessionStorage.getItem("registro→roa");
+    const raw = rawPrimary || rawLegacy;
+    if(!raw) return 0;
+    const obj = JSON.parse(raw);
+    const n = applyPrefillObject(obj);
+    if(n>0){
+      document.getElementById("bridgeBanner")?.classList.add("show");
+    }
+    if(rawPrimary) sessionStorage.removeItem("ROA_PAYLOAD");
+    if(rawLegacy)  sessionStorage.removeItem("registro→roa");
+    return n;
+  }catch(e){ console.warn("Prefill session error:", e); return 0; }
+}
+function tryPrefillFromQuery(){
+  try{
+    const u = new URL(location.href);
+    const b64 = u.searchParams.get("prefill");
+    if(!b64) return 0;
+    const json = atob(b64);
+    const obj = JSON.parse(json);
+    const n = applyPrefillObject(obj);
+    if(n>0){
+      document.getElementById("bridgeBanner")?.classList.add("show");
+    }
+    return n;
+  }catch(e){ console.warn("Prefill query error:", e); return 0; }
+}
+function transformToRoa(src){
+  const o = src || {};
+
+  // Si ya viene en formato ROA (mayúsculas), no lo tocamos
+  if (o["NOMBRE"]!=null || o["PRIMER APELLIDO"]!=null || o["SEGUNDO APELLIDO"]!=null) return o;
+
+  const out = {};
+
+  // Nombre y apellidos
+  if (o["Nombre"] != null) out["NOMBRE"] = o["Nombre"];
+  if (o["Apellidos"] != null){
+    const s = String(o["Apellidos"] || "").trim();
+    const p = s.split(/\s+/);
+    out["PRIMER APELLIDO"]  = p[0] || "";
+    out["SEGUNDO APELLIDO"] = p.slice(1).join(" ");
+  }
+
+  // Documento
+  if (o["Tipo de documento"] != null) out["TIPO DOCUMENTO"] = o["Tipo de documento"];
+  if (o["Nº Documento"] != null)      out["NÚMERO DE DOCUMENTO"] = o["Nº Documento"];
+  if (o["NºDOCUMENTO"] != null && !out["NÚMERO DE DOCUMENTO"])
+    out["NÚMERO DE DOCUMENTO"] = o["NºDOCUMENTO"];
+
+  // Sexo / nacionalidad / padres / fecha nacimiento
+  if (o["Sexo"] != null)                 out["SEXO"] = o["Sexo"];
+  if (o["Nacionalidad"] != null)         out["NACIONALIDAD"] = o["Nacionalidad"];
+  if (o["Nombre de los Padres"] != null) out["NOMBRE DE LOS PADRES"] = o["Nombre de los Padres"];
+  if (o["Fecha de nacimiento"] != null)  out["FECHA DE NACIMIENTO"] = o["Fecha de nacimiento"];
+
+  // 🔹 Lugar de nacimiento + provincia + país (desde Registro nuevo)
+  const muniNac  = (o["municipio-nacimiento"]  ?? "").toString().trim();
+  const provNac  = (o["provincia-nacimiento"]  ?? "").toString().trim();
+  const paisNac  = (o["pais-nacimiento"]       ?? "").toString().trim();
+  const lugarRaw = (o["Lugar de nacimiento"] ?? o["LUGAR DE NACIMIENTO"] ?? "").toString().trim();
+
+  if (muniNac) {
+    out["LUGAR DE NACIMIENTO"] = muniNac;
+  } else if (lugarRaw) {
+    // Legacy: si no hay muni explícito, usamos el texto viejo tal cual
+    out["LUGAR DE NACIMIENTO"] = lugarRaw;
+  }
+
+  if (provNac) {
+    out["PROVINCIA"] = provNac;
+  }
+
+  if (paisNac) {
+    out["PAÍS"] = paisNac;
+  }
+
+  // Domicilio / teléfono
+  if (o["Domicilio"] != null){
+    out["DOMICILIOS"] = o["Domicilio"];
+    out["DOMICILIO"]  = o["Domicilio"];
+  }
+  if (o["Teléfono"] != null) out["TELÉFONO"] = o["Teléfono"];
+
+  // Diligencias / resumen
+  if (o["Diligencias"] != null) out["DILIGENCIAS"] = o["Diligencias"];
+  if (o["Breve resumen de los hechos"] != null)
+    out["RESUMEN DILIGENCIAS"] = o["Breve resumen de los hechos"];
+
+  // Fechas diligencias + instructor
+  if (o["FECHA_GENERACION"] != null)
+    out["FECHA DILIGENCIAS"] = o["FECHA_GENERACION"];
+  if (o["Fecha de generación"] != null)
+    out["FECHA DILIGENCIAS"] = o["Fecha de generación"];
+  if (o["Instructor"] != null)
+    out["FUNCIONARIO EMISOR"] = o["Instructor"];
+
+  // Devolvemos original + campos ROA mapeados
+  return Object.assign({}, src, out);
+}
+function cargarJSON(ev) {
+  if (ev && ev.preventDefault) ev.preventDefault();
+  const input = document.getElementById("fileInputJSON");
+  input.value = null;
+  setTimeout(()=> input.click(), 0);
+  input.onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      const entry = Array.isArray(data) ? (data[0] || {}) : (data || {});
+      const payload = transformToRoa(entry);
+      const rellenados = applyPrefillObject(payload);
+      const m = document.getElementById("message");
+      if (m) m.innerText = rellenados > 0
+        ? "✅ JSON cargado: " + rellenados + " campos asignados"
+        : "ℹ️ JSON cargado, sin campos coincidentes";
+      document.getElementById("bridgeBanner")?.classList.add("show");
+    } catch (err) {
+      console.error(err);
+      const m = document.getElementById("message");
+      if (m) m.innerText = "❌ Error al cargar JSON: " + (err?.message || err);
+    }
+  };
+}
+function quitarAcentos(s){ return s.normalize("NFD").replace(/[\u0300-\u036f]/g,""); }
+function escRegex(s){ return s.replace(/[.*+?^${}()|[\]\\]/g,"\\$&"); }
+function buildFlexibleRegex(key){
+  const chars = quitarAcentos(key).toUpperCase().split("").map(escRegex);
+  const SEP = String.raw`(?:\s|&nbsp;|<[^>]+>)*`;
+  const inner = chars.join(SEP);
+  return new RegExp(String.raw`\{\{${SEP}(?:${inner})${SEP}\}\}`,"g");
+}
+function buildODTDataUpper(){
+  const data = {};
+  document.querySelectorAll("[name]").forEach(el=>{
+    data[el.name.toUpperCase()] = el.value ?? "";
+  });
+  const sel  = document.getElementById('tipoDocumento');
+  const otro = document.getElementById('tipoDocumentoOtro');
+  if(sel){ data["TIPO DOCUMENTO"] = (sel.value==="OTRO" ? (otro?.value||"") : sel.value); }
+  const num  = document.getElementById('numeroDocumento');
+  const sexo = document.getElementById('sexo');
+  if(num)  data["NÚMERO DE DOCUMENTO"] = num.value;
+  if(sexo) data["SEXO"] = sexo.value;
+  if ((!data["PAÍS"] || !data["PAÍS"].trim()) && data["NACIONALIDAD"]) {
+    data["PAÍS"] = data["NACIONALIDAD"];
+    data["PAIS"] = data["NACIONALIDAD"];
+  }
+  if ((!data["PROVINCIA"] || !data["PROVINCIA"].trim()) && data["NACIONALIDAD"]) {
+    data["PROVINCIA"] = data["NACIONALIDAD"];
+  }
+  if (data["PROFESIÓN"] == null && data["PROFESION"] != null) data["PROFESIÓN"] = data["PROFESION"];
+  if (data["PROFESION"] == null && data["PROFESIÓN"] != null) data["PROFESION"] = data["PROFESIÓN"];
+  if (data["NUMERO DE DOCUMENTO"] == null && data["NÚMERO DE DOCUMENTO"] != null) data["NUMERO DE DOCUMENTO"] = data["NÚMERO DE DOCUMENTO"];
+  if (data["NÚMERO DE DOCUMENTO"] == null && data["NUMERO DE DOCUMENTO"] != null) data["NÚMERO DE DOCUMENTO"] = data["NUMERO DE DOCUMENTO"];
+  const upper = {};
+  for (const k in data) upper[k] = String(data[k] ?? "").toUpperCase();
+  return upper;
+}
+async function generarODTUint8(base64, dataUpper){
+  const bytes = Uint8Array.from(atob(base64.replace(/[\r\n\t ]+/g,"")), c=>c.charCodeAt(0));
+  const zip = await JSZip.loadAsync(bytes);
+  let xml = await zip.file("content.xml").async("string");
+  for (const k in dataUpper){
+    const v = (dataUpper[k] ?? "").toString();
+    const rxExact = new RegExp("\\{\\{\\s*" + escRegex(k) + "\\s*\\}\\}","g");
+    xml = xml.replace(rxExact, v);
+    const kNoAcc = quitarAcentos(k).toUpperCase();
+    if (kNoAcc !== k){
+      const rxNoAcc = new RegExp("\\{\\{\\s*" + escRegex(kNoAcc) + "\\s*\\}\\}","g");
+      xml = xml.replace(rxNoAcc, v);
+    }
+  }
+  for (const k in dataUpper){
+    const v = (dataUpper[k] ?? "").toString();
+    const flex = buildFlexibleRegex(k);
+    xml = xml.replace(flex, v);
+    const flexNoAcc = buildFlexibleRegex(quitarAcentos(k));
+    xml = xml.replace(flexNoAcc, v);
+  }
+  xml = xml.replace(/{{\s*[^}]+\s*}}/g,"");
+  zip.file("content.xml", xml);
+  return await zip.generateAsync({type:"uint8array", compression:"DEFLATE"});
+}
+async function generarROA(){
+  const msg=document.getElementById("message");
+  try{
+    const plantilla =
+      (typeof window !== 'undefined' && window.PLANTILLA_ROA && window.PLANTILLA_ROA.length) ? window.PLANTILLA_ROA :
+      (window.PLANTILLAS && window.PLANTILLAS.roa) ? window.PLANTILLAS.roa :
+      "";
+    if(!plantilla){ msg.innerText="❌ Falta plantilla_roa.js (PLANTILLA_ROA)"; return; }
+    const dataUpper = buildODTDataUpper();
+    const odt = await generarODTUint8(plantilla, dataUpper);
+    const nombre = (findFieldByName("NOMBRE")?.value||"").trim();
+    const a1 = (findFieldByName("PRIMER APELLIDO")?.value||"").trim();
+    const a2 = (findFieldByName("SEGUNDO APELLIDO")?.value||"").trim();
+    const base = [nombre,a1,a2].filter(Boolean).join("_").replace(/[\/\\:*?"<>|]+/g," ").trim() || "ROA";
+    const blob = new Blob([odt], {type:"application/vnd.oasis.opendocument.text"});
+    saveAs(blob, `${base}_ROA.odt`);
+    msg.innerText="✅ R.O.A. generado";
+  }catch(e){
+    console.error(e);
+    msg.innerText="❌ Error al generar R.O.A.: " + (e?.message || e);
+  }
+}
+window.addEventListener('DOMContentLoaded', ()=>{
+  const sel=document.getElementById('tipoDocumento'), otro=document.getElementById('tipoDocumentoOtro');
+  if(sel && otro){ otro.style.display = sel.value==="OTRO" ? "block":"none"; }
+  const n1 = tryPrefillFromSession();
+  const n2 = (!n1 ? tryPrefillFromQuery() : 0);
+});
+</script>
+
+</body>
+</html>
