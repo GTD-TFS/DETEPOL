@@ -12,11 +12,11 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta charset="utf-8"/>
-<title>Registro Detenidos</title>
+<title>Registro de Detenidos</title>
 <script src="./js/estilo_registro.js"></script>
 </head>
 <body>
-<h1>Registro de Detenidos</h1>
+<h1>Registro Detenidos</h1>
 <form autocomplete="off" id="registroForm">
 <h2> </h2>
 <div class="grid-rows">
@@ -696,8 +696,9 @@ if (campo === 'dir'  && dirDom)  { dirDom.style.display='block'; }
   if (viaH) viaH.setAttribute('list','listaViaHecho');
   if (viaD) viaD.setAttribute('list','listaViaDet');
 
-  let DB = null;
-  let DBloaded = false;
+  let DB        = null;
+  let DBloaded  = false;
+  let unionBase = [];       // todas las calles ADEJE+ARONA precalculadas
 
   async function loadDB(){
     if (DB) return DB;
@@ -716,18 +717,17 @@ if (campo === 'dir'  && dirDom)  { dirDom.style.display='block'; }
     return DB;
   }
 
-  function buildOptionsForMunicipio(muni, frag){
+  function buildOptionsForMunicipio(muni){
     const U = (s)=>String(s||'').trim().toUpperCase();
     const src = (DB && DB[U(muni)]) ? DB[U(muni)] : null;
     if (!src) return [];
-    const f = String(frag||'').trim().toLowerCase();
     const out = [];
     Object.keys(src).forEach(tipo=>{
       const arr = Array.isArray(src[tipo]) ? src[tipo] : [];
       for (const nombre of arr){
         const base = String(nombre).replace(new RegExp('^'+tipo+'\\s+','i'), '');
-        const full = `${tipo} ${base}`;
-        if (!f || full.toLowerCase().includes(f)) out.push(full);
+        const full = `${tipo} ${base}`; // "CALLE Mayor"
+        out.push(full);
       }
     });
     out.sort((a,b)=>a.localeCompare(b,'es'));
@@ -746,34 +746,52 @@ if (campo === 'dir'  && dirDom)  { dirDom.style.display='block'; }
     dl.appendChild(frag);
   }
 
-  function unionCalles(frag){
-    const a = buildOptionsForMunicipio('ADEJE', frag || null);
-    const b = buildOptionsForMunicipio('ARONA', frag || null);
+  function buildUnionBase(){
+    // se llama SOLO una vez, cuando ya está DB
+    const a = buildOptionsForMunicipio('ADEJE');
+    const b = buildOptionsForMunicipio('ARONA');
     const set = new Set([...(a||[]), ...(b||[])]);
-    return Array.from(set).sort((x,y)=>x.localeCompare(y,'es'));
+    unionBase = Array.from(set).sort((x,y)=>x.localeCompare(y,'es'));
+  }
+
+  function getFiltradas(frag){
+    if (!unionBase.length) return [];
+    const f = String(frag||'').trim().toLowerCase();
+    // si no hay texto o menos de 2 caracteres, no saturamos
+    if (!f || f.length < 2) {
+      return unionBase.slice(0, 80);
+    }
+    const res = unionBase.filter(v => v.toLowerCase().includes(f));
+    return res.slice(0, 80); // límite duro de sugerencias
   }
 
   function refreshHecho(frag){
-    if (!dlH) return;
-    renderList(dlH, unionCalles(frag));
+    if (!dlH || !DBloaded) return;
+    renderList(dlH, getFiltradas(frag));
   }
   function refreshDet(frag){
-    if (!dlD) return;
-    renderList(dlD, unionCalles(frag));
+    if (!dlD || !DBloaded) return;
+    renderList(dlD, getFiltradas(frag));
   }
 
   async function ensureLoaded(){
     if (DBloaded) return;
     await loadDB();
+    buildUnionBase();
     DBloaded = true;
 
     // helpers globales para validación
     try {
-      window.callejeroOpciones = (muni, frag) => buildOptionsForMunicipio(muni, frag);
-      window.esCalleValida = (muni, via) => {
-        const opts = buildOptionsForMunicipio(muni, null);
+      window.callejeroOpciones = (muni, frag)=>{
+        if (!DBloaded) return [];
+        const f = String(frag||'').trim().toLowerCase();
+        return getFiltradas(f);
+      };
+      window.esCalleValida = (muni, via)=>{
+        if (!DBloaded) return true;
         const U = s=>String(s||'').trim().toUpperCase();
-        return opts.some(o => U(o) === U(via));
+        const lista = getFiltradas('');
+        return lista.some(o => U(o) === U(via));
       };
     } catch(_){}
 
@@ -790,9 +808,20 @@ if (campo === 'dir'  && dirDom)  { dirDom.style.display='block'; }
   if (selD)   selD.addEventListener('focus',  ()=>{ ensureLoaded(); }, { once:true });
   if (restoD) restoD.addEventListener('focus',()=>{ ensureLoaded(); }, { once:true });
 
-  // ── filtrado dinámico (solo después de cargar DB) ────────────────
-  if (viaH) viaH.addEventListener('input', ()=>{ if (DBloaded) refreshHecho(viaH.value); }, {passive:true});
-  if (viaD) viaD.addEventListener('input', ()=>{ if (DBloaded) refreshDet(viaD.value); }, {passive:true});
+  // ── filtrado dinámico con debounce ───────────────────────────────
+  let tH = null, tD = null;
+  if (viaH) viaH.addEventListener('input', ()=>{
+    if (!DBloaded) return;
+    clearTimeout(tH);
+    tH = setTimeout(()=>refreshHecho(viaH.value), 80);
+  }, {passive:true});
+
+  if (viaD) viaD.addEventListener('input', ()=>{
+    if (!DBloaded) return;
+    clearTimeout(tD);
+    tD = setTimeout(()=>refreshDet(viaD.value), 80);
+  }, {passive:true});
+
 })();
 </script>
 <div class="field-card" style="color: lightgreen;"><label>Hora del hecho</label><input id="horaHecho" name="HORA DEL HECHO" required="" type="time"/></div>
@@ -2028,6 +2057,7 @@ function validarIndicativo(){
 </script>
 </body>
 </html>
+
 
 
 
