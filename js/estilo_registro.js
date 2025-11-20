@@ -34,24 +34,34 @@
   .field-card.small-width { max-width: 160px !important; flex: 0 0 160px !important; }
   .field-card.small-width input[type="time"] { width: 100%; text-align: center; }
 
-  .actions { display:flex; justify-content:center; gap:55px; margin-top:26px; }
-  .actions button {
-    width:auto; flex:0 0 auto; padding:14px 20px; margin:0;
-    background: rgba(15,23,42,0.22);
-    border-radius: 12px;
-    border: 1px solid rgba(190, 200, 255, 0.45);
-    box-shadow:
-      0 0 10px rgba(136,170,255,0.45),
-      0 12px 26px rgba(0,0,0,0.70),
-      inset 0 1px 0 rgba(255,255,255,0.20);
-    backdrop-filter: blur(6px) saturate(140%);
-    -webkit-backdrop-filter: blur(6px) saturate(140%);
-    color: #fff;
-    font-weight: 800;
-    letter-spacing: .6px;
-    text-transform: uppercase;
-    transition: box-shadow .18s ease, transform .08s ease, border-color .18s ease, background .18s ease;
-  }
+  .actions{
+  display:flex;
+  flex-direction:column;   /* uno debajo de otro */
+  align-items:center;      /* centrados */
+  gap:14px;
+  margin-top:26px;
+}
+  .actions button{
+  width:100%;              /* que ocupen el ancho disponible */
+  max-width:320px;         /* tope para que no sean gigantes */
+  flex:0 0 auto;
+  padding:14px 20px;
+  margin:0;
+  background: rgba(15,23,42,0.22);
+  border-radius: 12px;
+  border: 1px solid rgba(190, 200, 255, 0.45);
+  box-shadow:
+    0 0 10px rgba(136,170,255,0.45),
+    0 12px 26px rgba(0,0,0,0.70),
+    inset 0 1px 0 rgba(255,255,255,0.20);
+  backdrop-filter: blur(6px) saturate(140%);
+  -webkit-backdrop-filter: blur(6px) saturate(140%);
+  color: #fff;
+  font-weight: 800;
+  letter-spacing: .6px;
+  text-transform: uppercase;
+  transition: box-shadow .18s ease, transform .08s ease, border-color .18s ease, background .18s ease;
+}
   .actions button:hover{
     transform: translateY(-1px);
     background: rgba(15,23,42,0.32);
