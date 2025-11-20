@@ -8,406 +8,882 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="Registro Detenidos">
 	
-<meta name="viewport" content="width=device-width, initial-scale=1">
-
 <link rel="manifest" href="manifest.json">
+
 <meta name="viewport" content="width=device-width, initial-scale=1">
-
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Registro de Detenidos - Formato Completo Offline</title>
-
-<!-- Librerías necesarias -->
-<script src="./jszip.min.js"></script>
-<script src="./FileSaver.min.js"></script>
-<script src="xlsx.full.min.js"></script>
-
-<!-- Plantillas Base64: deben definir window.PLANTILLAS con claves:
-     { amarillas, azules, fax, derechos_ingles, derechos_espanol } -->
-<script src="./plantilla_amarillas.js"></script>
-<script src="./plantilla_azules.js"></script>
-<script src="./plantilla_fax.js"></script>
-<script src="./plantilla_derechos_ingles.js"></script>
-<script src="./plantilla_derechos_espanol.js"></script>
-<script src="./plantilla_derechos_arabe.js"></script>
-<script src="./plantilla_derechos_italiano.js"></script>
-<script src="./plantilla_derechos_ruso.js"></script>
-<style>
-  :root { --primary:#3498db; --hover:#2980b9; --panel:rgba(0,0,0,0.75); --text:#fff; --field-bg:rgba(255,255,255,0.9); --border:#aaa; --radius:12px; --space:16px; --card-pad:14px; }
-  *{box-sizing:border-box}
-  body{margin:0;padding:0;font-family:Segoe UI,Roboto,Arial,sans-serif;background:url('fondo.jpg') no-repeat center center fixed;background-size:cover;min-height:100vh;display:flex;flex-direction:column;justify-content:center;}
-  h1{text-align:center;margin:16px 0 10px;font-size:32px;font-weight:800;color:#fff;text-transform:uppercase;text-shadow:2px 2px 8px rgba(0,0,0,.7);}
-  form{background:var(--panel);color:var(--text);border-radius:var(--radius);max-width:1400px;margin:0 auto 32px;padding:5px 32px;box-shadow:0 10px 28px rgba(0,0,0,.6);}
-  h2{font-size:20px;text-transform:uppercase;margin-top:14px;margin-bottom:12px;border-bottom:2px solid var(--primary);padding-bottom:6px;letter-spacing:.5px;}
-  .grid-rows{display:grid;grid-gap:var(--space);grid-template-columns: repeat(3, minmax(280px,1fr));}
-  @media(max-width:1200px){.grid-rows{grid-template-columns:repeat(2,minmax(280px,1fr));}}
-  @media(max-width:700px){.grid-rows{grid-template-columns:1fr;}}
-  .field-card{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.18);border-radius:10px;padding:var(--card-pad);display:flex;flex-direction:column;gap:8px;min-height:94px;}
-  label{font-weight:700;font-size:12px;margin-bottom:2px;text-transform:uppercase;letter-spacing:.6px;}
-  input,select,textarea{width:100%;padding:5px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--field-bg);color:#000;}
-  textarea{resize:vertical;min-height:56px;}
-  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 2px rgba(52,152,219,.25);}
-  .actions{text-align:center;margin-top:26px;}
-  button{color:#fff;padding:14px 26px;border:none;border-radius:10px;font-weight:800;font-size:15px;text-transform:uppercase;cursor:pointer;letter-spacing:.6px;display:block;width:100%;margin-bottom:20px;}
-  button:hover{opacity:0.9;}
-  #message{margin-top:12px;text-align:center;font-weight:bold;color:#fff;}
-  .full-width {
-    grid-column: span 3;
-  }
-  /* Reduce la altura por defecto de todas las tarjetas */
-  .field-card {
-    padding: 10px;        /* antes var(--card-pad)=14px */
-    gap: 6px;             /* antes 8px */
-    min-height: 64px;     /* antes 94px */
-  }
-  textarea {
-    min-height: 34px;     /* altura visible del textarea */
-  }
-
-  /* Ajuste responsivo para que en móvil los campos de "Hechos" vayan en columna */
-  .grid-rows {
-    display: flex;
-    flex-wrap: wrap;
-    gap: .5rem;
-  }
-
-  .grid-rows .field-card {
-    flex: 1;
-    min-width: 200px; /* así en pantallas grandes aún se ve en fila */
-  }
-
-  @media (max-width: 768px) {
-    .grid-rows {
-      flex-direction: column;   /* <--- fuerza apilado vertical */
-    }
-    .grid-rows .field-card {
-      width: 100% !important;
-      min-width: unset !important;
-    }
-  }
-
-  input[type="time"] {
-    width: 100px;   /* lo justo para HH:MM con espacio delante y detrás */
-    text-align: center; /* centra el valor dentro del campo */
-  }
-
-  .field-card input[type="time"] {
-    width: 100px !important;   /* fuerza anchura justa */
-    text-align: center;        /* centra HH:MM */
-    display: inline-block;     /* evita que se estire */
-  }
-
-  .field-card.small-width {
-    max-width: 160px !important; /* fuerza el ancho del globo */
-    flex: 0 0 160px !important;  /* no dejar que el flex de .grid-rows lo estire */
-  }
-  .field-card.small-width input[type="time"] {
-    width: 100%; 
-    text-align: center;
-  }
-
-/* Título principal */
-h1 {
-  color: #1E90FF;
-  margin-bottom: 0;      /* elimina espacio debajo */
-}
-	
-  /* Botones colores específicos */
- /* Colores */
-.actions .zip {
-  background-color: #008080;      /* Botón descarga XLSX en teal */
-}
-.actions .xlsx {
-  background-color: #006400;   /* Botón carga XLSX en verde */
-}
-.actions .refresh {
-  background-color: #1E90FF;   /* Botón refrescar en azul */
-}
-.actions {
-  display: flex;
-  flex-direction: column;   /* en columna */
-  align-items: center;      /* centrados */
-  gap: 10px;                /* separación vertical */
-}
-
-.actions button {
-  width: 75%;               /* cada botón ocupa el 75% del contenedor */
-  max-width: 400px;         /* opcional: no pasar de 400px en pantallas grandes */
-  text-align: center;
-}
-
-
-  #delitoOtroTexto::placeholder {
-  color: #ff0000; /* Cambia #ff0000 por el color que quieras */
-  opacity: 1;
-}
-
-	 h2 {
-  font-family: 'Comic Sans MS';
-  font-size: 120%;
-  font-weight: bold;
-  text-align: center;
-  color: darkcyan; /* si quieres mantener el color darkcyan */
-  
-}
-	 
-	 #marca-registro {
-  position: fixed;
-  bottom: 5px;
-  right: 5px;
-  font-size: 8px;
-  color: rgba(255, 0, 0, 0.3); /* rojo con 50% de opacidad */
-  pointer-events: none;
-  user-select: none;
-  z-index: 9999;
-  font-family: Arial, sans-serif;
-  text-align: center; /* para centrar las líneas */
-  line-height: 1.2; /* espacio entre líneas */
-}
-
-	.field-card,
-.field-card * {
-  text-align: center;
-}
-.field-card {
-  align-items: center;
-}
-select {
-  text-align-last: center; /* centra el valor seleccionado */
-}
-.titulo-img {
-  text-align: center;       /* Centra horizontalmente */
-  margin: 0;      /* Igual que antes */
-}
-
-.titulo-img img {
-  max-width: 100%;          /* Escala en pantallas pequeñas */
-  height: auto;             /* Mantiene proporción */
-  display: inline-block;    /* Centrado correcto */
-  filter: drop-shadow(2px 2px 8px rgba(0,0,0,0.7)); /* imita el text-shadow */
-}
-</style>
-
+<meta charset="utf-8"/>
+<title>Registro de Detenidos</title>
+<script src="./js/estilo_registro.js"></script>
 </head>
 <body>
-	<h1 class="titulo-img">
-  <img src="IMG_2954.png" alt="DETEPOL" style="width:120px; height:auto;">
-
-</h1>
-
-  <form id="registroForm" autocomplete="off">
-    <h2> 🪪 Datos de Filiación 🪪 </h2>
-    <div class="grid-rows">
-      <div class="field-card" style="color: lightblue;">
-        <label>Tipo Documento</label>
-        <select name="TIPO DOCUMENTO_OPCION" id="tipoDocumento">
-          <option value="INDOCUMENTADO/A" selected>INDOCUMENTADO/A</option>
-          <option value="DNI">DNI</option>
-          <option value="NIE">NIE</option>
-          <option value="PASAPORTE">PASAPORTE</option>
-          <option value="OTRO">OTRO</option>
-        </select>
-        <input type="text" name="TIPO DOCUMENTO" id="tipoDocumentoOtro" placeholder="Especificar otro" style="display:none;">
-      </div>
-      <div class="field-card" style="color: lightblue;">
-        <label>Nº Documento</label>
-        <input type="text" name="NºDOCUMENTO" id="numeroDocumento">
-      </div>
-      <div class="field-card" style="color: lightblue;">
-        <label>Sexo</label>
-        <select name="SEXO_OPCION" id="sexoOpcion">
-          <option value="MASCULINO" selected>MASCULINO</option>
-          <option value="FEMENINO">FEMENINO</option>
-        </select>
-      </div>
-     
-      <div class="field-card" style="color: lightblue;"><label>Nombre</label><input type="text" name="Nombre" id="Nombre"></div>
-      <div class="field-card" style="color: lightblue;"><label>Apellidos</label><input type="text" name="APELLIDOS" id="APELLIDOS"></div>
-      <div class="field-card" style="color: lightblue;">
-        <label>Nombre de los Padres</label>
-        <select name="NOMBRE_PADRES_OPCION" id="nombrePadresOpcion">
-          <option value="NO APORTA" selected>NO APORTA</option>
-          <option value="OTRO">OTRO</option>
-        </select>
-        <input type="text" name="NOMBRE_PADRES" id="nombrePadresTexto" placeholder="Especificar" style="display:none;">
-      </div>
-      <div class="field-card" style="color: lightblue;"><label>Fecha de nacimiento</label><input type="text" name="FECHA DE NACIMIENTO" placeholder="DD/MM/AAAA"></div>
-      <div class="field-card" style="color: lightblue;"><label>Lugar de nacimiento</label><input type="text" name="LUGAR DE NACIMIENTO"></div>
-	  <div class="field-card" style="color: lightblue;"><label>Nacionalidad</label><input type="text" name="NACIONALIDAD" id="nacionalidadtexto" placeholder="País"></div>
-      <div class="field-card" style="color: lightblue;">
-        <label>Domicilio</label>
-        <select name="DOMICILIO_OPCION" id="domicilioOpcion">
-          <option value="NO APORTA" selected>NO APORTA</option>
-          <option value="OTRO">OTRO</option>
-        </select>
-        <input type="text" name="DOMICILIO" maxlength="45" id="domicilioTexto" placeholder="Especificar" style="display:none;">
-      </div>
-      <div class="field-card" style="color: lightblue;">
-        <label>Teléfono</label>
-        <select name="TELÉFONO_OPCION" id="telefonoOpcion">
-          <option value="NO APORTA" selected>NO APORTA</option>
-          <option value="OTRO">OTRO</option>
-        </select>
-        <input type="text" name="TELÉFONO" id="telefonoTexto" placeholder="Especificar" style="display:none;">
-      </div>
-      <div class="field-card" style="color: red;"><label>Fecha actual por defecto</label><input type="text" name="FECHA_GENERACION" id="fechaGeneracion"></div>
-    </div>
-
-    <h2> 🚔 Hechos 🚔 </h2>
-    <div class="grid-rows">
-      <div class="field-card" style="color: lightgreen;">
-        <label>Delito(s)</label>
-        <select id="delitoSelect">
-          <option value="">-- Seleccionar --</option>
-          <option value="HURTO">HURTO</option>
-          <option value="DAÑOS">DAÑOS</option>
-          <option value="ESTAFA">ESTAFA</option>
-          <option value="ROBO CON FUERZA">ROBO CON FUERZA</option>
-          <option value="ROBO USO DE VEHICULO">ROBO USO DE VEHÍCULO</option>
-          <option value="HURTO USO DE VEHICULO">HURTO USO DE VEHÍCULO</option>
-          <option value="ROBO CON VIOLENCIA">ROBO CON VIOLENCIA</option>
-          <option value="LESIONES">LESIONES</option>
-          <option value="AMENAZAS GRAVES">AMENAZAS GRAVES</option>
-          <option value="MALOS TRATOS EN EL ÁMBITO FAMILIAR">MALOS TRATOS EN EL ÁMBITO FAMILIAR</option>
-          <option value="ABUSO SEXUAL">ABUSO SEXUAL</option>
-          <option value="ATENTADO AGENTE AUTORIDAD">ATENTADO AGENTE AUTORIDAD</option>
-          <option value="DESOBEDIENCIA">DESOBEDIENCIA</option>
-          <option value="CONTRA LA SEGURIDAD VIAL">CONTRA LA SEGURIDAD VIAL</option>
-          <option value="CONTRA LA SALUD PÚBLICA">CONTRA LA SALUD PÚBLICA</option>
-          <option value="TRÁFICO DE DROGAS">TRÁFICO DE DROGAS</option>
-          <option value="FALSEDAD DOCUMENTAL">FALSEDAD DOCUMENTAL</option>
-          <option value="RECLAMACIÓN JUDICIAL">RECLAMACIÓN JUDICIAL</option>
-          <option value="QUEBRANTAMIENTO DE CONDENA">QUEBRANTAMIENTO DE CONDENA</option>
-          <option value="OTRO">OTRO</option>
-        </select>
-
-        <!-- input para OTRO -->
-        <input type="text" id="delitoOtroTexto" placeholder="Especificar y pulsar Enter" style="display:none;">
-
-        <!-- sub-globo inferior -->
-        <div id="delitosSeleccionados" style="color: red; margin-top:8px; padding:5px; border:1px solid #ccc; min-height:30px;">
-          <em>Ningún delito seleccionado</em>
-        </div>
-      </div>
-      <div class="field-card" style="color: lightgreen;"><label>Indicativo</label><input type="text" name="Indicativo" id="indicativotexto" placeholder="A-000"></div>
-      <div class="field-card" style="color: lightgreen;"><label>C.P. Agentes</label><input type="text" name="C.P. AGENTES" id="agentestexto"></div>
-      <div class="field-card" style="color: lightgreen;"><label>Diligencias</label><input type="text" name="DILIGENCIAS" id="diligenciatexto" placeholder="Pedir a GTD/ODAC ☏"></div>
-      <div class="field-card" style="color: lightgreen;"><label>Instructor</label><input type="number" name="INSTRUCTOR" id="instructortexto" placeholder="Pedir a GTD/ODAC ☏"></div>
-      <div class="field-card" style="color: lightgreen;"><label>Lugar del hecho</label><input type="text" name="LUGAR DEL HECHO"></div>
-      <div class="field-card" style="color: lightgreen;"><label>Lugar de la detención</label><input type="text" name="LUGAR DE LA DETENCIÓN"></div>
-      <div class="field-card" style="color: lightgreen;"><label>Hora del hecho</label><input type="time" name="HORA DEL HECHO" id="horaHecho"></div>
-      <div class="field-card" style="color: lightgreen;"><label>Hora de la detención</label><input type="time" name="HORA DE LA DETENCIÓN" id="horaDetencion"></div>
-      <div class="field-card full-width" style="color: lightgreen;">
-        <label>Breve resumen de los hechos</label><textarea name="BREVE RESUMEN DE LOS HECHOS" id="brevetexto" placeholder="Ej: Autor de agresión con arma blanca..."></textarea>
-      </div>
-
-      <div class="field-card full-width" style="color: lightgreen;">
-        <label>Indicios por los que se detiene</label><textarea name="INDICIOS POR LOS QUE SE DETIENE" id="indiciostexto" placeholder="Ej: Manifestaciones perjudicado, testigos..."></textarea>
-      </div>
-    </div>
-    <h2> ⚖️ Derechos ⚖️ </h2>
-    <div class="grid-rows">
-      <div class="field-card" style="color: orange;">
-        <label>Abogado</label>
-        <select name="ABOGADO_OPCION" id="abogadoOpcion">
-          <option value="DE OFICIO" selected>DE OFICIO</option>
-          <option value="OTRO">PARTICULAR</option>
-        </select>
-        <input type="text" name="ABOGADO" id="abogadoTexto" placeholder="Nombre y teléfono" style="display:none;">
-      </div>
-      <div class="field-card" style="color: orange;">
-        <label>Comunicarse con</label>
-        <select name="COMUNICARSE CON_OPCION" id="comunicarseOpcion">
-          <option value="NADIE" selected>NADIE</option>
-          <option value="OTRO">OTRO</option>
-        </select>
-        <input type="text" name="COMUNICARSE CON:" id="comunicarseTexto" placeholder="Nombre y teléfono" style="display:none;">
-      </div>
-      <div class="field-card" style="color: orange;">
-        <label>Informar de detención</label>
-  <select name="INFORMAR DE DETENCION_OPCION" id="informardeOpcion">
-    <option value="NADIE" selected>NADIE</option>
-    <option value="OTRO">OTRO</option>
-  </select>
-         <input type="text" name="INFORMAR DE DETENCION" id="informardeTexto" placeholder="Nombre y teléfono" style="display:none;">
+<h1>    R e g i s t r o    d e    D e t e n i d o s</h1>
+<form autocomplete="off" id="registroForm">
+<h2> </h2>
+<div class="grid-rows">
+<div class="field-card" style="color: lightblue;">
+<label>Tipo Documento</label>
+<select id="tipoDocumento" name="TIPO DOCUMENTO_OPCION">
+<option selected value="INDOCUMENTADO">Indocumentado</option>
+<option value="INDOCUMENTADA">Indocumentada</option>
+<option value="DNI">DNI</option>
+<option value="NIE">NIE</option>
+<option value="Pasaporte">Pasaporte</option>
+<option value="Carta Nacional de Identidad">Carta Nacional de Identidad</option>
+<option value="OTRO">OTRO</option>
+</select>
+<input id="tipoDocumentoOtro" name="TIPO DOCUMENTO" placeholder="Especificar otro" style="display:none;" type="text"/>
 </div>
-
-      <div class="field-card" style="color: orange;">
-        <label>Intérprete</label>
-        <select name="INTERPRETE_OPCION" id="interpreteOpcion">
-          <option value="NO" selected>NO</option>
-          <option value="INGLÉS">INGLÉS</option>
-          <option value="ÁRABE">ÁRABE</option>
-          <option value="ITALIANO">ITALIANO</option>
-          <option value="RUSO">RUSO</option>
-          <option value="OTRO">OTRO</option>
-        </select>
-        <input type="text" name="IDIOMA" id="idioma" placeholder="Especificar idioma/contexto" style="display:none;">
-      </div>
-      <div class="field-card" style="color: orange;">
-        <label>Médico</label>
-        <select name="MEDICO" id="medico">
-          <option value="NO" selected>NO</option>
-          <option value="SI">SI</option>
-        </select>
-      </div>
-      <div class="field-card" style="color: orange;">
-        <label>Consulado</label>
-        <select name="CONSULADO" id="consulado">
-          <option value="NO" selected>NO</option>
-          <option value="SI">SI</option>
-        </select>
-      </div>
-    </div>
-
- <div class="actions">
-  <input type="file" id="fileInputXLSX" accept=".xlsx" style="display:none">
-
-  <!-- Descarga XLSX (darkblue con icono) -->
- <button type="button" class="zip" onclick="generarSoloXLSX()">
-  💾 Descargar ⬇️
-</button>
-
-
-  <!-- Cargar XLSX (verde con icono) -->
-  <button type="button" class="xlsx" onclick="cargarExcel()">
-    📁 Cargar ⬆️
-  </button>
-
-  <!-- Refrescar (azul con icono) -->
-  <button type="button" class="refresh" onclick="location.reload();">
-    🔄 Refrescar 🔄
-  </button>
+<div class="field-card" style="color: lightblue;">
+<label>Nº Documento</label>
+<input id="numeroDocumento" name="NºDOCUMENTO" type="text"
+       oninput="this.value=this.value.toUpperCase()">
 </div>
+<div class="field-card" style="color: lightblue;">
+<label>Sexo</label>
+<select id="sexoOpcion" name="SEXO_OPCION" required="">
+<option selected="" value="">-- Seleccionar --</option>
+<option value="MASCULINO">MASCULINO</option>
+<option value="FEMENINO">FEMENINO</option>
+</select>
+</div>
+<div class="field-card" style="color: lightblue;">
+<label>Nacionalidad</label>
+<input id="nacionalidadInput" list="listaNacionalidad" name="NACIONALIDAD" required="" type="text"/>
+<datalist id="listaNacionalidad"></datalist>
+</div>
+<div class="field-card" style="color: lightblue;"><label>Nombre</label><input id="Nombre" name="Nombre" type="text" oninput="this.value = this.value.toLowerCase().replace(/\b\w+/g, w => w.charAt(0).toUpperCase() + w.slice(1));"/></div>
+<div class="field-card" style="color: lightblue;"><label>Apellidos</label><input id="APELLIDOS" name="APELLIDOS" type="text"oninput="this.value=this.value.toUpperCase()"></div>
+<div class="field-card" style="color: lightblue;">
+<label>Nombre de los Padres</label>
+<select id="nombrePadresOpcion" name="NOMBRE_PADRES_OPCION">
+<option selected="" value="NO APORTA">NO APORTA</option>
+<option value="OTRO">OTRO</option>
+</select>
+<input id="nombrePadresTexto" name="NOMBRE_PADRES" placeholder="Especificar" style="display:none;" type="text"
+oninput="this.value = this.value.toLowerCase()
+  .replace(/\b\w+/g, function(w){ return w.charAt(0).toUpperCase() + w.slice(1); })
+  .replace(/\bY\b/g, 'y');"/>
+</div>
+<div class="field-card" style="color: lightblue;"><label>Fecha de nacimiento</label><input name="FECHA DE NACIMIENTO" placeholder="DD/MM/AAAA" required="" type="date"/></div>
+<div class="field-card" style="color: lightblue;">
+<label>Lugar de nacimiento</label>
+<input id="paisNacimiento" list="listaPaisNacimiento" required="" style="width:100%;"/>
+<datalist id="listaPaisNacimiento"></datalist>
+<select id="provNacimiento" style="display:none;">
+<option value="">-- Provincia --</option>
+</select>
+<input id="munNacimiento" list="listaMunNacimiento" placeholder="Municipio" style="display:none; width:100%;"/>
+<datalist id="listaMunNacimiento"></datalist>
+<input id="lugarNacimientoHidden" name="LUGAR DE NACIMIENTO" type="hidden">
+</input></div>
+<div class="field-card" style="color: lightblue;">
+<label>Domicilio</label>
+<select id="domicilioOpcion" name="DOMICILIO_OPCION">
+<option value="">-- Selecciona --</option>
+<option value="NO APORTA">NO APORTA</option>
+<option value="APORTA">APORTA</option>
+</select>
+<div id="domicilioBloque" style="display:none; width:100%;">
+<select id="provDomicilio" style="margin-top:6px; width:100%;">
+<option value="">-- Provincia --</option>
+</select>
+<input id="munDomicilio" list="listaMunDomicilio" placeholder="Municipio" style="margin-top:6px; width:100%;"/>
+<datalist id="listaMunDomicilio"></datalist>
+<input id="direccionDomicilio" maxlength="120" placeholder="Dirección (calle, nº, piso...)" style="display:none; width:100%; margin-bottom:8px;" type="text">
+</input></div>
+<input id="domicilioTextoHidden" name="DOMICILIO" type="hidden"/>
+<script src="./js/paises.js"></script>
+<script src="./js/provincias_es.js"></script>
+<script src="./js/municipios.js"></script>
+<script src="./js/calles.js"></script>
+</div>
+<script>
+      
+      let PROVINCIAS_ES = [];
+      (async function cargarProvinciasES(){
+        try{
+          
+          if (Array.isArray(window.PROVINCIAS_ES) && window.PROVINCIAS_ES.length){
+            PROVINCIAS_ES = window.PROVINCIAS_ES.slice();
+          } else if (Array.isArray(window.PROVINCIAS_ES_GLOBAL) && window.PROVINCIAS_ES_GLOBAL.length){
+            PROVINCIAS_ES = window.PROVINCIAS_ES_GLOBAL.slice();
+          } else {
+            throw new Error('No hay global de provincias (usa js/provincias_es.js)');
+          }
+        }catch(_e){
+          
+          PROVINCIAS_ES = [
+            "A Coruña","Álava","Albacete","Alicante","Almería","Asturias","Ávila","Badajoz","Illes Balears","Barcelona","Burgos","Cáceres","Cádiz","Cantabria","Castellón","Ciudad Real","Córdoba","Cuenca","Girona","Granada","Guadalajara","Gipuzkoa","Huelva","Huesca","Jaén","La Rioja","Las Palmas","León","Lleida","Lugo","Madrid","Málaga","Murcia","Navarra","Ourense","Palencia","Pontevedra","Salamanca","Santa Cruz de Tenerife","Segovia","Sevilla","Soria","Tarragona","Teruel","Toledo","Valencia","Valladolid","Bizkaia","Zamora","Zaragoza","Ceuta","Melilla"
+          ];
+          console.warn('⚠️ Usando fallback de provincias al no encontrar globals.');
+        }
+        poblarProvincias('provNacimiento');
+        poblarProvincias('provDomicilio');
+      })();
 
-<div id="message"></div>
-</form>
+      
+      let MUNICIPIOS_ES = { type:null, data:null, ready:false };
 
-  <script>
-    // Helpers
-    function escapeRegExp(s){ return s.replace(/[.*+?^${}()|[\]\\]/g,"\$&"); }
-    function buildFlexibleRegex(key){
-      const chars = key.split("").map(c=>escapeRegExp(c));
-      const flexible = chars.join("(?:\s|<[^>]+>|&nbsp;)*");
-      return new RegExp("\{\{(?:\s|<[^>]+>|&nbsp;)*"+flexible+"(?:\s|<[^>]+>|&nbsp;)*\}\}","gi");
+      function __normUp(s){
+        return String(s||'').trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+      }
+
+      (async function cargarMunicipios(){
+        try{
+          
+          
+          let g = null;
+          if (typeof window.MUNICIPIOS_ES   !== 'undefined') g = window.MUNICIPIOS_ES;
+          else if (typeof window.MUNICIPIOS_MAP  !== 'undefined') g = window.MUNICIPIOS_MAP;
+          else if (typeof window.MUNICIPIOS_FLAT !== 'undefined') g = window.MUNICIPIOS_FLAT;
+          else if (typeof window.MUNICIPIOS      !== 'undefined') g = window.MUNICIPIOS;
+
+          if (!g) throw new Error('No hay global de municipios (usa js/municipios.js)');
+
+          if (Array.isArray(g)){
+            
+            MUNICIPIOS_ES = { type:'flat', data:new Set(g.map(__normUp)), ready:true };
+          } else if (g && typeof g === 'object'){
+            
+            const map = {};
+            for (const [k,v] of Object.entries(g)){
+              map[__normUp(k)] = Array.isArray(v) ? v.slice() : [];
+            }
+            MUNICIPIOS_ES = { type:'map', data:map, ready:true };
+          } else {
+            throw new Error('Formato de municipios global inválido');
+          }
+        }catch(e){
+          console.error("No se pudo cargar municipios (globals):", e);
+          MUNICIPIOS_ES = { type:'map', data:{}, ready:true };
+        }
+        
+        try{
+          const pN = document.getElementById('provNacimiento')?.value;
+          if (pN) poblarMunicipios('munNacimiento', pN);
+          const pD = document.getElementById('provDomicilio')?.value;
+          if (pD) poblarMunicipios('munDomicilio', pD);
+        }catch(_e){}
+      })();
+
+      function getMunicipios(prov){
+        if (!MUNICIPIOS_ES.ready) return null;
+        if (MUNICIPIOS_ES.type === 'flat'){
+          return Array.from(MUNICIPIOS_ES.data).sort();
+        }
+        const key = __normUp(prov);
+        return (MUNICIPIOS_ES.data[key] || []).slice();
+      }
+
+      
+      (async function poblarPaisesDatalist(){
+        const conf = [
+          { inputId: 'paisNacimiento', listId: 'listaPaisNacimiento' },
+          { inputId: 'nacionalidadInput', listId: 'listaNacionalidad' }
+        ];
+        const pairs = conf
+          .map(c => ({ inp: document.getElementById(c.inputId), dl: document.getElementById(c.listId) }))
+          .filter(o => o.inp && o.dl);
+        if (!pairs.length) return;
+
+        function fillList(datalist, values){
+          datalist.innerHTML = values.map(v => `<option value="${String(v)}"></option>`).join('');
+        }
+
+        
+        let values = [];
+        const data = (typeof window.PAISES !== 'undefined') ? window.PAISES : (typeof window.paises !== 'undefined' ? window.paises : null);
+        if (data){
+          if (Array.isArray(data)){
+            values = data.slice();
+          } else if (data && typeof data === 'object'){
+            const featured = Array.isArray(data.featured) ? data.featured.slice() : [];
+            const grouped  = Array.isArray(data.groups) ? data.groups.flatMap(g => (Array.isArray(g.items) ? g.items : [])) : [];
+            values = [...featured, ...grouped];
+          }
+        }
+
+        
+        if (!values.length){
+          console.warn('⚠️ No hay window.PAISES definido en js/paises.js');
+        }
+
+        
+        if (values.length){
+          const idx = values.findIndex(x => String(x).toUpperCase() === 'ESPAÑA');
+          if (idx > 0){ const sp = values.splice(idx,1)[0]; values.unshift(sp); }
+        }
+
+        pairs.forEach(({dl}) => fillList(dl, values));
+        pairs.forEach(({inp}) => { inp.setAttribute('autocomplete','off'); });
+      })();
+
+      
+      function poblarProvincias(selectId){
+        const sel = document.getElementById(selectId);
+        if (!sel) return;
+        let arr = Array.isArray(PROVINCIAS_ES) ? PROVINCIAS_ES.slice() : [];
+        const idx = arr.findIndex(p => String(p).toUpperCase() === 'SANTA CRUZ DE TENERIFE');
+        if (idx > -1){ const sc = arr.splice(idx,1)[0]; arr.unshift(sc); }
+        const opts = ['<option value="">-- Provincia --</option>']
+          .concat(arr.map(p => `<option value="${p}">${p}</option>`)).join('');
+        sel.innerHTML = opts;
+      }
+      function poblarMunicipios(selectId, prov){
+        const el = document.getElementById(selectId);
+        if (!el) return;
+
+        
+        if (!MUNICIPIOS_ES.ready){
+          if (el.tagName === 'SELECT'){
+            el.innerHTML = '<option value="">Cargando municipios…</option>';
+            el.disabled = true;
+          }
+          const t = setInterval(()=>{
+            if (MUNICIPIOS_ES.ready){
+              clearInterval(t);
+              poblarMunicipios(selectId, prov);
+            }
+          }, 200);
+          return;
+        }
+
+        const lista = getMunicipios(prov) || [];
+
+        if (el.tagName === 'SELECT'){
+          el.disabled = false;
+          const opts = ['<option value="">-- Municipio --</option>']
+            .concat(lista.map(m => `<option value="${m}">${m}</option>`))
+            .join('');
+          el.innerHTML = opts;
+          return;
+        }
+        if (el.tagName === 'INPUT' && el.getAttribute('list')){
+          const dl = document.getElementById(el.getAttribute('list'));
+          if (!dl) return;
+          dl.innerHTML = lista.map(m => `<option value="${m}"></option>`).join('');
+          el.value = '';
+          return;
+        }
+      }
+      function isSpain(v){
+        const t = String(v||'').trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();
+        return t === 'ESPAÑA' || t === 'ESPANA' || t === 'ES';
+      }
+
+      
+      const paisInp = document.getElementById('paisNacimiento');
+      const provNac = document.getElementById('provNacimiento');
+      const munNac  = document.getElementById('munNacimiento');
+      const lugarNacHidden = document.getElementById('lugarNacimientoHidden');
+
+      const domSel = document.getElementById('domicilioOpcion');
+      const domBlk = document.getElementById('domicilioBloque');
+      const provDom = document.getElementById('provDomicilio');
+      const munDom  = document.getElementById('munDomicilio');
+      const dirDom  = document.getElementById('direccionDomicilio');
+      const domHidden = document.getElementById('domicilioTextoHidden');
+
+      function recomputeLugarNacimiento(){
+        const pais = (paisInp.value||'').trim();
+        if (isSpain(pais)){
+          const p = (provNac.value||'').trim();
+          const m = (munNac.value||'').trim();
+          lugarNacHidden.value = (m && p) ? `${m}, ${p}` : (p || m || 'ESPAÑA');
+        } else {
+          lugarNacHidden.value = pais || '';
+        }
+      }
+
+      function handlePaisNacimientoChange(){
+        const esES = isSpain(paisInp.value);
+        provNac.style.display = esES ? 'block' : 'none';
+        munNac.style.display  = esES ? 'block' : 'none';
+        provNac.required = esES;
+        munNac.required  = esES;
+        if (!esES){ provNac.value=''; munNac.value=''; provNac.required=false; munNac.required=false; }
+        recomputeLugarNacimiento();
+      }
+      paisInp.addEventListener('change', handlePaisNacimientoChange, {passive:true});
+      paisInp.addEventListener('input',  handlePaisNacimientoChange, {passive:true});
+      provNac.addEventListener('change', ()=>{
+        poblarMunicipios('munNacimiento', provNac.value);
+        munNac.value='';
+        recomputeLugarNacimiento();
+      }, {passive:true});
+      munNac.addEventListener('input', recomputeLugarNacimiento, {passive:true});
+      munNac.addEventListener('change', recomputeLugarNacimiento, {passive:true});
+
+      
+      domSel.addEventListener('change', ()=>{
+        const v = domSel.value;
+        const aporta = (v === 'APORTA');
+
+        if (aporta){
+          
+          domBlk.style.display = 'flex';
+          domBlk.style.flexDirection = 'column';
+          domBlk.style.gap = '8px';
+
+          
+          if (provDom) provDom.style.display = 'block';
+          if (munDom)  munDom.style.display  = 'block';
+          if (dirDom)  dirDom.style.display  = 'block';
+
+          
+          provDom.required = true;
+          munDom.required  = true;
+          dirDom.required  = true;
+        } else {
+          
+          domBlk.style.display = (v ? 'none' : 'none');
+          if (provDom){ provDom.value=''; provDom.required=false; }
+          if (munDom){  munDom.value='';  munDom.required=false;  munDom.style.display='none'; }
+          if (dirDom){  dirDom.value='';  dirDom.required=false;  dirDom.style.display='none'; }
+        }
+
+        
+        domHidden.value = (v === 'NO APORTA') ? 'NO APORTA' : (aporta ? (dirDom.value||'') : '');
+      }, {passive:true});
+      provDom.addEventListener('change', ()=>{ poblarMunicipios('munDomicilio', provDom.value); munDom.value=''; }, {passive:true});
+      dirDom.addEventListener('input', ()=>{ if (domSel.value === 'APORTA'){ domHidden.value = dirDom.value; } }, {passive:true});
+
+      
+      function abrirDomicilioYEnfocar(campo){
+        if (domSel.value !== 'APORTA'){
+          domSel.value = 'APORTA';
+          domSel.dispatchEvent(new Event('change'));
+        } else {
+          domBlk.style.display = 'flex';
+          domBlk.style.flexDirection = 'column';
+          domBlk.style.gap = '8px';
+          provDom.required = true; munDom.required = true; dirDom.required = true;
+        }
+        
+if (campo === 'dir'  && dirDom)  { dirDom.style.display='block'; }
+      }
+
+      provDom.addEventListener('mousedown', ()=>abrirDomicilioYEnfocar('prov'), {passive:true});
+      munDom.addEventListener('mousedown', ()=>abrirDomicilioYEnfocar('mun'),  {passive:true});
+      provDom.addEventListener('change',   ()=>abrirDomicilioYEnfocar('mun'),  {passive:true});
+
+      function _abrirDirSiHayMunSinFoco(){
+        if ((munDom.value||'').trim().length){
+          if (domSel.value !== 'APORTA'){
+            domSel.value = 'APORTA';
+            domSel.dispatchEvent(new Event('change'));
+          } else {
+            domBlk.style.display = 'flex';
+            domBlk.style.flexDirection = 'column';
+            domBlk.style.gap = '8px';
+            provDom.required = true; munDom.required = true; dirDom.required = true;
+          }
+          dirDom.style.display = 'block';
+        }
+      }
+      munDom.addEventListener('change', _abrirDirSiHayMunSinFoco, {passive:true});
+      munDom.addEventListener('blur',   _abrirDirSiHayMunSinFoco, {passive:true});
+
+      document.addEventListener('DOMContentLoaded', ()=>{
+        const tieneMun  = (munDom.value||'').trim().length>0;
+        const tieneProv = (provDom.value||'').trim().length>0;
+        if (tieneMun || tieneProv) abrirDomicilioYEnfocar(tieneMun ? 'dir' : 'mun');
+      }, {once:true});
+
+      
+      (function installExportWrapper(){
+        function hook(){
+          if (typeof window.exportarJSON !== 'function'){ return setTimeout(hook, 50); }
+          const prev = window.exportarJSON;
+          window.exportarJSON = async function(){
+            const form = document.getElementById('registroForm');
+            form.setAttribute('data-pais-nac', (paisInp.value||'').trim());
+            form.setAttribute('data-prov-nac', (provNac.value||'').trim());
+            form.setAttribute('data-mun-nac',  (munNac.value||'').trim());
+            form.setAttribute('data-prov-dom', (provDom.value||'').trim());
+            form.setAttribute('data-mun-dom',  (munDom.value||'').trim());
+            const __save = window.saveBlobJson;
+            window.saveBlobJson = async function(text, filename){
+              try{
+                const obj = JSON.parse(text);
+                obj["NACIONALIDAD"] = (document.getElementById('nacionalidadInput')?.value ?? obj["NACIONALIDAD"]) || "";
+                const P  = String(form.getAttribute('data-pais-nac')||'').toUpperCase();
+                const Pr = String(form.getAttribute('data-prov-nac')||'').toUpperCase();
+                const Mu = String(form.getAttribute('data-mun-nac')||'');
+                const PD = String(form.getAttribute('data-prov-dom')||'').toUpperCase();
+                const MD = String(form.getAttribute('data-mun-dom')||'');
+
+                obj["pais-nacimiento"]      = P;
+                obj["provincia-nacimiento"] = Pr;
+                obj["municipio-nacimiento"] = Mu;
+
+                obj["provincia-domicilio"]  = PD;
+                obj["municipio-domicilio"]  = MD;
+
+                const esES = (P === 'ESPAÑA' || P === 'ESPANA' || P === 'ES' || P === 'SPAIN' || P === 'REINO DE ESPANA');
+                if (P){
+                  obj["Lugar de nacimiento"] = esES ? ((Mu && Pr) ? `${Mu}, ${Pr}` : (Pr || Mu || 'ESPAÑA')) : P;
+                }
+                text = JSON.stringify(obj, null, 2);
+              }catch(_e){}
+              return __save.call(this, text, filename);
+            };
+            try{
+              return await prev.apply(this, arguments);
+            } finally {
+              window.saveBlobJson = __save;
+            }
+          };
+        }
+        hook();
+      })();
+      </script>
+<div class="field-card" style="color: lightblue;">
+<label>Teléfono</label>
+<select id="telefonoOpcion" name="TELÉFONO_OPCION">
+<option selected="" value="NO APORTA">NO APORTA</option>
+<option value="OTRO">OTRO</option>
+</select>
+<input id="telefonoTexto" name="TELÉFONO" placeholder="Especificar" style="display:none;" type="text" inputmode="numeric" oninput="this.value=this.value.replace(/[^0-9]/g,'')"/>
+</div>
+<div class="field-card" style="color: red;"><label>Fecha del registro</label><input id="fechaGeneracion" name="FECHA_GENERACION" type="text"/></div>
+</div>
+<h2> </h2>
+<div class="grid-rows">
+<div class="field-card" style="color: lightgreen;">
+<label>Delito(s)</label>
+<select id="delitoSelect">
+<option value="">-- Seleccionar --</option>
+<option value="HURTO">HURTO</option>
+<option value="DAÑOS">DAÑOS</option>
+<option value="ESTAFA">ESTAFA</option>
+<option value="ROBO CON VIOLENCIA">ROBO CON VIOLENCIA</option>
+<option value="ROBO CON FUERZA">ROBO CON FUERZA</option>
+<option value="ROBO USO DE VEHÍCULO">ROBO USO DE VEHÍCULO</option>
+<option value="HURTO USO DE VEHÍCULO">HURTO USO DE VEHÍCULO</option>
+<option value="APROPIACIÓN INDEBIDA">APROPIACIÓN INDEBIDA</option>
+<option value="LESIONES">LESIONES</option>
+<option value="HOMICIDIO">HOMICIDIO</option>
+<option value="AMENAZAS GRAVES">AMENAZAS GRAVES</option>
+<option value="ACOSO">ACOSO</option>
+<option value="MALOS TRATOS EN EL ÁMBITO FAMILIAR">MALOS TRATOS EN EL ÁMBITO FAMILIAR</option>
+<option value="COACCIONES">COACCIONES</option>
+<option value="ABUSO SEXUAL">ABUSO SEXUAL</option>
+<option value="AGRESIÓN SEXUAL">AGRESIÓN SEXUAL</option>
+<option value="VIOLACIÓN">VIOLACIÓN</option>
+<option value="ATENTADO AGENTE AUTORIDAD">ATENTADO AGENTE AUTORIDAD</option>
+<option value="RESISTENCIA / DESOBEDIENCIA">RESISTENCIA / DESOBEDIENCIA</option>
+<option value="CONTRA LA SEGURIDAD VIAL">CONTRA LA SEGURIDAD VIAL</option>
+<option value="CONTRA LA SALUD PÚBLICA">CONTRA LA SALUD PÚBLICA</option>
+<option value="TRÁFICO DE DROGAS">TRÁFICO DE DROGAS</option>
+<option value="FALSEDAD DOCUMENTAL">FALSEDAD DOCUMENTAL</option>
+<option value="RECLAMACIÓN JUDICIAL">RECLAMACIÓN JUDICIAL</option>
+<option value="QUEBRANTAMIENTO DE CONDENA">QUEBRANTAMIENTO DE CONDENA</option>
+<option value="RIÑA TUMULTUARIA">RIÑA TUMULTUARIA</option>
+<option value="DETENCIÓN ILEGAL">DETENCIÓN ILEGAL</option>
+<option value="OMISIÓN DEL DEBER DE SOCORRO">OMISIÓN DEL DEBER DE SOCORRO</option>
+<option value="ALLANAMIENTO DE MORADA">ALLANAMIENTO DE MORADA</option>
+<option value="OTRO">OTRO</option>
+</select>
+<input id="delitoOtroTexto" placeholder="Especificar y pulsar Enter" style="display:none;" type="text"/>
+<div id="delitosSeleccionados" style="color: red; margin-top:8px; padding:5px; border:1px solid #ccc; min-height:30px;">
+<em>Ningún delito seleccionado</em>
+</div>
+</div>
+<div class="field-card" style="color: lightgreen;"><label>Indicativo</label><input id="indicativotexto" list="indicativos" name="Indicativo" placeholder="Américas 1 y 2" required="" type="text"/></div>
+<div class="field-card" style="color: lightgreen;"><label>C.P. Agentes</label><input id="agentestexto" name="C.P. AGENTES" required="" type="text"/></div>
+<div class="field-card" style="color: lightgreen;"><label>Diligencias</label><input id="diligenciatexto" name="DILIGENCIAS" type="text"/></div>
+<div class="field-card" style="color: lightgreen;"><label>Instructor</label><input id="instructortexto" name="INSTRUCTOR" type="number"/></div>
+<div class="field-card" style="color: lightgreen;">
+<label>Lugar del hecho</label>
+<select id="munHechoSel" required>
+<option value="">-- Seleccionar --</option>
+<option value="ADEJE">ADEJE</option>
+<option value="ARONA">ARONA</option>
+<option value="OTRO">OTRO</option>
+</select>
+<input id="viaHecho" placeholder="Coincide callejero" style="display:none; margin-top:6px; width:100%; order:3;" type="text" required/>
+<input id="restoHecho" placeholder="Resto dirección..." style="display:none; margin-top:6px; width:100%; order:4;" type="text"/>
+<input id="munHechoOtro" placeholder="Municipio (si elegiste OTRO)" style="display:none; margin-top:6px; width:100%; order:2;" type="text"/>
+<input id="lugarHechoHidden" name="LUGAR DEL HECHO" type="hidden"/>
+</div>
+<div class="field-card" style="color: lightgreen;">
+<label>Lugar de la detención</label>
+<select id="munDetSel" required>
+<option value="">-- Seleccionar --</option>
+<option value="ADEJE">ADEJE</option>
+<option value="ARONA">ARONA</option>
+<option value="OTRO">OTRO</option>
+</select>
+<input id="viaDet" placeholder="Coincide callejero" style="display:none; margin-top:6px; width:100%; order:3;" type="text" required/>
+<input id="restoDet" placeholder="Resto dirección..." style="display:none; margin-top:6px; width:100%; order:4;" type="text"/>
+<input id="munDetOtro" placeholder="Municipio (si elegiste OTRO)" style="display:none; margin-top:6px; width:100%; order:2;" type="text"/>
+<input id="lugarDetHidden" name="LUGAR DE LA DETENCIÓN" type="hidden"/>
+</div>
+<script>
+(function(){
+  const form = document.getElementById('registroForm');
+
+  const selH = document.getElementById('munHechoSel');
+  const viaH = document.getElementById('viaHecho');
+  const otroH = document.getElementById('munHechoOtro');
+  const hidH = document.getElementById('lugarHechoHidden');
+  const restoH = document.getElementById('restoHecho');
+
+  const selD = document.getElementById('munDetSel');
+  const viaD = document.getElementById('viaDet');
+  const otroD = document.getElementById('munDetOtro');
+  const hidD = document.getElementById('lugarDetHidden');
+  const restoD = document.getElementById('restoDet');
+
+  
+  function compose(via, resto, _muni){
+    const v = String(via||'').trim();
+    const r = String(resto||'').trim();
+    
+    return v ? (r ? (v + ' ' + r) : v) : (r || '');
+  }
+  function muniFromSelection(selEl, otroEl){
+    if (!selEl) return '';
+    const v = selEl.value;
+    if (v === 'OTRO') return (otroEl?.value||'');
+    return v || '';
+  }
+  function updateHecho(evt){
+    if (!selH || !viaH || !hidH) return;
+    const choice = selH.value;
+    const fromTyping = evt && evt.type === 'input' && (evt.target === viaH || evt.target === otroH);
+
+    otroH.style.display = (choice === 'OTRO') ? 'block' : 'none';
+    viaH.style.display  = choice ? 'block' : 'none';
+    if (restoH) { restoH.style.display = (viaH.value || restoH.value) ? 'block' : 'none'; }
+    const muni = muniFromSelection(selH, otroH);
+    hidH.value = compose(viaH.value, (restoH?.value||''), muni);
+    if (form) form.setAttribute('data-mun-hecho', String(muni).toUpperCase());
+
+    if (!fromTyping) {
+      if (choice === 'OTRO') { if (otroH) otroH.focus(); }
+      else if (choice === 'ADEJE' || choice === 'ARONA') { if (viaH) viaH.focus(); }
     }
-    function toAsciiFileName(s){return (s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/ñ/gi,'n').replace(/[^A-Za-z0-9._-]+/g,'_');}
-    function xmlEscape(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-    function sanitizeForFilename(s){return String(s||'').replace(/[\/\:*?"<>|]+/g,' ').trim();}
-    function U(s){ return String(s ?? '').toUpperCase(); } // MAYÚSCULAS
+  }
+  function updateDet(evt){
+    if (!selD || !viaD || !hidD) return;
+    const choice = selD.value;
+    const fromTyping = evt && evt.type === 'input' && (evt.target === viaD || evt.target === otroD);
 
-    // Mostrar inputs "OTRO" + bloquear NºDOC si indocumentado + mostrar IDIOMA si intérprete "OTRO"
+    otroD.style.display = (choice === 'OTRO') ? 'block' : 'none';
+    viaD.style.display  = choice ? 'block' : 'none';
+    if (restoD) { restoD.style.display = (viaD.value || restoD.value) ? 'block' : 'none'; }
+    const muni = muniFromSelection(selD, otroD);
+    hidD.value = compose(viaD.value, (restoD?.value||''), muni);
+    if (form) form.setAttribute('data-mun-detencion', String(muni).toUpperCase());
+
+    if (!fromTyping) {
+      if (choice === 'OTRO') { if (otroD) otroD.focus(); }
+      else if (choice === 'ADEJE' || choice === 'ARONA') { if (viaD) viaD.focus(); }
+    }
+  }
+  if (selH) { selH.addEventListener('input',  updateHecho, {passive:true}); selH.addEventListener('change', updateHecho, {passive:true}); }
+  if (viaH) { viaH.addEventListener('input',  (e)=>updateHecho(e), {passive:true}); }
+  if (otroH){ otroH.addEventListener('input', (e)=>updateHecho(e), {passive:true}); }
+
+  if (selD) { selD.addEventListener('input',  updateDet, {passive:true}); selD.addEventListener('change', updateDet, {passive:true}); }
+  if (viaD) { viaD.addEventListener('input',  (e)=>updateDet(e), {passive:true}); }
+  if (otroD){ otroD.addEventListener('input', (e)=>updateDet(e), {passive:true}); }
+  updateHecho(); updateDet();
+
+  if (selH && viaH) {
+    selH.addEventListener('click', ()=>{ viaH.style.display = 'block'; }, {passive:true});
+    selH.addEventListener('change', ()=>{
+      updateHecho();
+      if (selH.value === 'OTRO') { if (otroH) try{ otroH.focus(); }catch(_){} }
+      else { if (viaH) try{ viaH.focus(); }catch(_){} }
+    }, {passive:true});
+  }
+
+  if (selD && viaD) {
+    selD.addEventListener('click', ()=>{ viaD.style.display = 'block'; }, {passive:true});
+    selD.addEventListener('change', ()=>{
+      updateDet();
+      if (selD.value === 'OTRO') { if (otroD) try{ otroD.focus(); }catch(_){} }
+      else { if (viaD) try{ viaD.focus(); }catch(_){} }
+    }, {passive:true});
+  }
+
+  
+  function esValidaEnCallejero(muni, via){
+    try {
+      if (typeof window.esCalleValida === 'function') return !!window.esCalleValida(muni, via);
+    } catch(_) {}
+    
+    return true;
+  }
+  function validarViaYMostrarResto(selEl, viaEl, restoEl, hidEl, otroEl){
+    const muni = muniFromSelection(selEl, otroEl);
+    if (!selEl || !viaEl || !hidEl) return;
+
+    
+    if (!muni || String(muni).toUpperCase() === 'OTRO'){
+      if (restoEl) restoEl.style.display = (viaEl.value.trim() || (restoEl?.value||'').trim()) ? 'block' : 'none';
+      hidEl.value = compose(viaEl.value, (restoEl?.value||''), ''); 
+      return;
+    }
+
+    
+    const ok = esValidaEnCallejero(muni, viaEl.value);
+    if (!ok){
+      
+      if (restoEl) restoEl.style.display = (viaEl.value.trim() || (restoEl?.value||'').trim()) ? 'block' : 'none';
+      hidEl.value = compose(viaEl.value, (restoEl?.value||''), '');
+      const panel = document.getElementById('message');
+      if (panel){
+        panel.textContent = '⚠️ La vía debe existir en el callejero de ' + String(muni).toUpperCase() + '.';
+        panel.style.color = '#ffcc66';
+      }
+      return;
+    }
+
+    
+    if (restoEl){
+      restoEl.style.display = 'block';
+    }
+    hidEl.value = compose(viaEl.value, (restoEl?.value||''), '');
+  }
+
+  
+  if (viaH) { viaH.addEventListener('blur',  ()=>validarViaYMostrarResto(selH, viaH, restoH, hidH, otroH), {passive:true}); }
+  if (viaD) { viaD.addEventListener('blur',  ()=>validarViaYMostrarResto(selD, viaD, restoD, hidD, otroD), {passive:true}); }
+  if (restoH) { restoH.addEventListener('input', ()=>{ const m = muniFromSelection(selH, otroH); hidH.value = compose(viaH.value, restoH.value, m); }, {passive:true}); }
+  if (restoD) { restoD.addEventListener('input', ()=>{ const m = muniFromSelection(selD, otroD); hidD.value = compose(viaD.value, restoD.value, m); }, {passive:true}); }
+
+  document.addEventListener('DOMContentLoaded', ()=> {
+    try {
+      updateHecho();
+      updateDet();
+      if (selH && viaH && selH.value) { viaH.style.display = 'block'; }
+      if (selD && viaD && selD.value) { viaD.style.display = 'block'; }
+      
+      setTimeout(()=>{ try{ updateHecho(); }catch(_){} }, 0);
+      setTimeout(()=>{ try{ updateDet(); }catch(_){} }, 0);
+    } catch(_e){}
+  }, {once:true});
+
+})();
+</script>
+<script>
+
+(function callesMunicipales(){
+  const viaH = document.getElementById('viaHecho');
+  const viaD = document.getElementById('viaDet');
+  const selH = document.getElementById('munHechoSel');
+  const selD = document.getElementById('munDetSel');
+  const restoH = document.getElementById('restoHecho');
+  const restoD = document.getElementById('restoDet');
+  if (!viaH && !viaD) return;
+
+  
+  let dlH = document.getElementById('listaViaHecho');
+  if (!dlH){ dlH = document.createElement('datalist'); dlH.id = 'listaViaHecho'; document.body.appendChild(dlH); }
+  let dlD = document.getElementById('listaViaDet');
+  if (!dlD){ dlD = document.createElement('datalist'); dlD.id = 'listaViaDet'; document.body.appendChild(dlD); }
+  if (viaH) viaH.setAttribute('list','listaViaHecho');
+  if (viaD) viaD.setAttribute('list','listaViaDet');
+
+  let DB = null;
+
+  async function loadDB(){
+    if (DB) return DB;
+    if (typeof window.CALLEJERO !== 'undefined' && window.CALLEJERO){
+      DB = window.CALLEJERO;
+      return DB;
+    }
+    DB = {};
+    try{
+      const panel = document.getElementById('message');
+      if (panel){
+        panel.textContent = '⚠️ No se ha cargado ./calles.js (callejero). Abre este archivo con calles.js en la misma carpeta.';
+        panel.style.color = '#ffcc66';
+      }
+    }catch(_){}
+    return DB;
+  }
+
+  function buildOptionsForMunicipio(muni, frag){
+    const U = (s)=>String(s||'').trim().toUpperCase();
+    const src = (DB && DB[U(muni)]) ? DB[U(muni)] : null;
+    if (!src) return [];
+    const f = String(frag||'').trim().toLowerCase();
+    const out = [];
+    Object.keys(src).forEach(tipo=>{
+      const arr = Array.isArray(src[tipo]) ? src[tipo] : [];
+      for (const nombre of arr){
+        
+        const base = String(nombre).replace(new RegExp('^'+tipo+'\\s+','i'), '');
+        const full = `${tipo} ${base}`; 
+        if (!f || full.toLowerCase().includes(f)) out.push(full);
+      }
+    });
+    out.sort((a,b)=>a.localeCompare(b,'es'));
+    return out;
+  }
+
+  function renderList(dl, items){
+    if (!dl) return;
+    dl.innerHTML = '';
+    const frag = document.createDocumentFragment();
+    for (const v of items){
+      const o = document.createElement('option');
+      o.value = v;
+      frag.appendChild(o);
+    }
+    dl.appendChild(frag);
+  }
+
+  
+  
+
+  
+    function unionCalles(frag){
+    const a = buildOptionsForMunicipio('ADEJE', frag || null);
+    const b = buildOptionsForMunicipio('ARONA', frag || null);
+    const set = new Set([...(a||[]), ...(b||[])]);
+    return Array.from(set).sort((x,y)=>x.localeCompare(y,'es'));
+  }
+  function refreshHecho(frag){ if (dlH) renderList(dlH, unionCalles(frag)); }
+  function refreshDet(frag){  if (dlD) renderList(dlD, unionCalles(frag)); }
+
+  loadDB().then(()=>{
+    
+    try {
+      window.callejeroOpciones = (muni, frag) => buildOptionsForMunicipio(muni, frag);
+      window.esCalleValida = (muni, via) => {
+        const opts = buildOptionsForMunicipio(muni, null);
+        const U = s=>String(s||'').trim().toUpperCase();
+        return opts.some(o => U(o) === U(via));
+      };
+    } catch(_) {  }
+    refreshHecho();
+    refreshDet();
+    if (selH) {
+      selH.addEventListener('change', refreshHecho, {passive:true});
+    }
+    if (selD) {
+      selD.addEventListener('change', refreshDet, {passive:true});
+    }
+
+    if (viaH) viaH.addEventListener('input', ()=>refreshHecho(viaH.value), {passive:true});
+    if (viaD) viaD.addEventListener('input', ()=>refreshDet(viaD.value), {passive:true});
+  });
+})();
+</script>
+<div class="field-card" style="color: lightgreen;"><label>Hora del hecho</label><input id="horaHecho" name="HORA DEL HECHO" required="" type="time"/></div>
+<div class="field-card" style="color: lightgreen;"><label>Hora de la detención</label><input id="horaDetencion" name="HORA DE LA DETENCIÓN" required="" type="time"/></div>
+<div class="field-card" style="color: lightgreen;">
+<label>Breve resumen de los hechos</label><textarea id="brevetexto" name="BREVE RESUMEN DE LOS HECHOS" required=""></textarea>
+</div>
+<div class="field-card" style="color: lightgreen;">
+<label>Indicios por los que se detiene</label><textarea id="indiciostexto" name="INDICIOS POR LOS QUE SE DETIENE" required=""></textarea>
+</div>
+</div>
+<h2> </h2>
+<div class="grid-rows">
+<div class="field-card" style="color: orange;">
+<label>Abogado</label>
+<select id="abogadoOpcion" name="ABOGADO_OPCION">
+<option selected="" value="DE OFICIO">DE OFICIO</option>
+<option value="OTRO">PARTICULAR</option>
+</select>
+<input id="abogadoTexto" name="ABOGADO" placeholder="Nombre y teléfono" style="display:none;" type="text"/>
+</div>
+<div class="field-card" style="color: orange;">
+<label>Comunicarse con</label>
+<select id="comunicarseOpcion" name="COMUNICARSE CON_OPCION">
+<option selected="" value="NADIE">NADIE</option>
+<option value="OTRO">OTRO</option>
+</select>
+<input id="comunicarseTexto" name="COMUNICARSE CON:" placeholder="Nombre y teléfono" style="display:none;" type="text"/>
+</div>
+<div class="field-card" style="color: orange;">
+<label>Informar de detención</label>
+<select id="informardeOpcion" name="INFORMAR DE DETENCION_OPCION">
+<option selected="" value="NADIE">NADIE</option>
+<option value="OTRO">OTRO</option>
+</select>
+<input id="informardeTexto" name="INFORMAR DE DETENCION" placeholder="Nombre y teléfono" style="display:none;" type="text"/>
+</div>
+<div class="field-card" style="color: orange;">
+<label>Intérprete</label>
+<select id="interpreteOpcion" name="INTERPRETE_OPCION">
+<option selected="" value="NO">NO</option>
+<option value="INGLÉS">INGLÉS</option>
+<option value="ÁRABE">ÁRABE</option>
+<option value="ITALIANO">ITALIANO</option>
+<option value="RUSO">RUSO</option>
+<option value="OTRO">OTRO</option>
+</select>
+<input id="idioma" name="IDIOMA" placeholder="Especificar idioma/contexto" style="display:none;" type="text"/>
+</div>
+<div class="field-card" style="color: orange;">
+<label>Médico</label>
+<select id="medico" name="MEDICO">
+<option selected="" value="NO">NO</option>
+<option value="SI">SI</option>
+</select>
+</div>
+<div class="field-card" style="color: orange;">
+<label>Consulado</label>
+<select id="consulado" name="CONSULADO">
+<option selected="" value="NO">NO</option>
+<option value="SI">SI</option>
+</select>
+</div>
+</div>
+<datalist id="indicativos">
+<option value="América"></option>
+<option value="Troya"></option>
+<option value="Chacal"></option>
+<option value="Faro Adeje"></option>
+</datalist>
+</form>
+<div class="actions actions-outside">
+<input accept=".json" id="fileInputJSON" style="display:none" type="file"/>
+<button class="zip" onclick="exportarJSON()" type="button">💾 DESCARGAR JSON ⬇️</button>
+<button class="xlsx" onclick="importarJSON()" type="button">📁 IMPORTAR JSON ⬆️</button>
+<button class="refresh" onclick="location.reload();" type="button">🔄    REFRESCAR    🔄</button>
+<button id="goRoaBtn" style="display:none" type="button">➡️ Ir a R.O.A.</button>
+</div>
+<div id="message"></div>
+<script>
+    function sanitizeForFilename(s){return String(s||'').replace(/[\/\:*?"<>|]+/g,' ').trim();}
+    function U(s){ return String(s ?? '').toUpperCase(); } 
+
+    // Minimal helper for indocumentado label
+    function updateIndocumentadoUI(useImported){
+      // No longer needed with split options
+    }
+
     document.addEventListener('change',e=>{
       if(e.target.id==="tipoDocumento"){
         const val=e.target.value;
         document.getElementById('tipoDocumentoOtro').style.display=(val==="OTRO")?"block":"none";
         const num=document.getElementById("numeroDocumento");
-        if(val==="INDOCUMENTADO/A"){ num.value=""; num.disabled=true; } else { num.disabled=false; }
+        const vv = String(val).toUpperCase();
+        if(vv==="INDOCUMENTADO" || vv==="INDOCUMENTADA"){ num.value=""; num.disabled=true; } else { num.disabled=false; }
+      }
+      if (e.target.id === "sexoOpcion") {
+        const tipo = document.getElementById('tipoDocumento');
+        if (!tipo) return;
+        const sex = (e.target.value||'').toUpperCase();
+        // Only auto-switch if currently indocumentado/indocumentada
+        const v = (tipo.value||'').toUpperCase();
+        if (v === "INDOCUMENTADO" || v === "INDOCUMENTADA") {
+          tipo.value = (sex === "FEMENINO") ? "INDOCUMENTADA" : "INDOCUMENTADO";
+          tipo.dispatchEvent(new Event('change'));
+        }
       }
       if(e.target.id==="interpreteOpcion"){
         document.getElementById('idioma').style.display=(e.target.value==="OTRO")?"block":"none";
       }
-      // Mostrar/ocultar campos de texto asociados a "OTRO"
       if(e.target.tagName==="SELECT" && e.target.closest('.field-card')){
         const input=e.target.closest('.field-card').querySelector('input[type="text"]');
         if(input && !["tipoDocumento","interpreteOpcion"].includes(e.target.id)){
@@ -416,789 +892,1124 @@ select {
       }
     });
 
-const selectDelito = document.getElementById("delitoSelect");
-const lista = document.getElementById("delitosSeleccionados");
-const inputOtro = document.getElementById("delitoOtroTexto");
-let delitosElegidos = [];
+    const selectDelito = document.getElementById("delitoSelect");
+    const lista = document.getElementById("delitosSeleccionados");
+    const inputOtro = document.getElementById("delitoOtroTexto");
+    let delitosElegidos = [];
 
-selectDelito.addEventListener("change", ()=>{
-  const val = selectDelito.value;
-  
-  if (val === "OTRO") {
-    inputOtro.style.display = "inline-block";
-    inputOtro.focus();
-    return;
-  }
-  
-  if (val && !delitosElegidos.includes(val)) {
-    delitosElegidos.push(val);
-    renderDelitos();
-  }
-  // reset
-  selectDelito.value = "";
-});
-
-inputOtro.addEventListener("keydown", e=>{
-  if(e.key==="Enter"){
-    e.preventDefault();
-    const val = inputOtro.value.trim();
-    if(val && !delitosElegidos.includes(val)){
-      delitosElegidos.push(val);
-      renderDelitos();
-    }
-    inputOtro.value="";
-    inputOtro.style.display="none";
-    selectDelito.value="";
-  }
-});
-
-function renderDelitos() {
-  lista.innerHTML="";
-  if(delitosElegidos.length===0){
-    lista.innerHTML = '<em style="color: red; font-style: normal;">Ningún delito seleccionado</em>';
-  return;
-}
-  delitosElegidos.forEach((d,i)=>{
-    const span=document.createElement("span");
-    span.textContent=d;
-    span.style.cssText="padding:3px 6px; margin:2px; background:#eef; border:1px solid #99c; border-radius:4px; display:inline-block; cursor:pointer;";
-    span.title="Click para eliminar";
-    span.addEventListener("click", ()=>{ 
-      delitosElegidos.splice(i,1);
-      renderDelitos();
+    selectDelito.addEventListener("change", ()=>{
+      const val = selectDelito.value;
+      if (val === "OTRO") { inputOtro.style.display = "inline-block"; inputOtro.focus(); return; }
+      if (val && !delitosElegidos.includes(val)) { delitosElegidos.push(val); renderDelitos(); }
+      selectDelito.value = "";
     });
-    lista.appendChild(span);
-  });
-}
 
-// Normaliza: quita acentos, pasa a mayúsculas y compacta
-function normalizeKey(str) {
-  return str
-    ? str.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase().replace(/[^A-Z0-9]/g,"").trim()
-    : "";
-}
-
-
-	  
-// Auxiliar: maneja selects con input asociado (NO APORTA / OTRO)
-function setSelectWithInput(selectName, excelValue) {
-  const select = document.querySelector(`[name="${selectName}"]`);
-  if (!select) return;
-
-  const card = select.closest(".field-card");
-  const textInput = card ? card.querySelector("input[type=text], textarea") : null;
-  const normExcel = normalizeKey(excelValue);
-
-  console.log(`setSelectWithInput: selectName=${selectName}, excelValue='${excelValue}', normExcel='${normExcel}'`);
-
-  let matched = false;
-  for (const opt of select.options) {
-    console.log(`  option value='${opt.value}', norm='${normalizeKey(opt.value)}'`);
-    if (normalizeKey(opt.value) === normExcel) {
-      select.value = opt.value;
-      matched = true;
-      if (textInput) {
-        textInput.value = "";
-        textInput.style.display = "none";  // OCULTAR input
+    inputOtro.addEventListener("keydown", e=>{
+      if(e.key==="Enter"){
+        e.preventDefault();
+        const val = inputOtro.value.trim();
+        if(val && !delitosElegidos.includes(val)){ delitosElegidos.push(val); renderDelitos(); }
+        inputOtro.value=""; inputOtro.style.display="none"; selectDelito.value="";
       }
-      break;
-    }
-  }
+    });
 
-  if (!matched) {
-    if (!excelValue || ["NOAPORTA","NO","DEOFICIO"].includes(normExcel)) {
-      const fallback = Array.from(select.options).find(opt =>
-        ["NOAPORTA","NO","DEOFICIO"].includes(normalizeKey(opt.value))
-      );
-      if (fallback) select.value = fallback.value;
-      if (textInput) {
-        textInput.value = "";
-        textInput.style.display = "none";  // OCULTAR input
-      }
-    } else {
-      const otherOpt = Array.from(select.options).find(opt => normalizeKey(opt.value) === "OTRO");
-      if (otherOpt) select.value = otherOpt.value;
-      if (textInput) {
-        textInput.value = excelValue;
-        textInput.style.display = "block";  // MOSTRAR input con valor
-      }
-    }
-  }
-}
-
-// Cargar Excel previo
-async function cargarExcel() {
-  const input = document.getElementById("fileInputXLSX");
-  input.value = null; // reset para poder cargar mismo archivo varias veces
-  input.click();
-
-  input.onchange = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    try {
-      const data = await file.arrayBuffer();
-      const workbook = XLSX.read(data, { type: "array" });
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-
-      rows.forEach(([pregunta, respuesta]) => {
-        if (!pregunta) return;
-        const qNorm = normalizeKey(pregunta);
-        let r = respuesta;
-
-        // Convertir número decimal Excel a hh:mm para horas
-        if (typeof r === 'number' && (qNorm === "HORADELHECHO" || qNorm === "HORADELADETENCION")) {
-          const totalMinutes = Math.round(r * 24 * 60);
-          const hh = String(Math.floor(totalMinutes / 60)).padStart(2, '0');
-          const mm = String(totalMinutes % 60).padStart(2, '0');
-          r = `${hh}:${mm}`;
-        } else {
-          r = (r || "").toString().trim();
-        }
-
-        // Condición mejorada para TIPO DOCUMENTO
-        if (qNorm.includes("TIPO") && qNorm.includes("DOCUMENTO")) {
-          setSelectWithInput("TIPO DOCUMENTO_OPCION", r);
-          return;
-        }
-
-        // Casos con combo "NO APORTA/OTRO"
-        if (qNorm === "DOMICILIO") { setSelectWithInput("DOMICILIO_OPCION", r); return; }
-        if (qNorm === "TELEFONO") { setSelectWithInput("TELÉFONO_OPCION", r); return; }
-        if (qNorm === "NOMBREDELOSPADRES") { setSelectWithInput("NOMBRE_PADRES_OPCION", r); return; }
-        if (qNorm === "ABOGADO") { setSelectWithInput("ABOGADO_OPCION", r); return; }
-        if (qNorm === "COMUNICARSECON") { setSelectWithInput("COMUNICARSE CON_OPCION", r); return; }
-        if (qNorm === "INFORMARDEDETENCION") { setSelectWithInput("INFORMAR DE DETENCION_OPCION", r); return; }
-        if (qNorm === "INTERPRETE") { setSelectWithInput("INTERPRETE_OPCION", r); return; }
-
-        // Delitos múltiples
-        if (qNorm === "DELITO") {
-          delitosElegidos = r.split(/,\s*|\s+y\s+/).map(v => v.trim()).filter(Boolean);
-          renderDelitos();
-          return;
-        }
-
-        // Campos simples (input/select/textarea)
-        const allInputs = document.querySelectorAll("[name]");
-        for (const el of allInputs) {
-          const elNorm = normalizeKey(el.name);
-          if (elNorm === qNorm) {
-            if (el.tagName === "SELECT") {
-              el.value = r;
-              el.dispatchEvent(new Event("change"));
-            } else if (el.tagName === "INPUT" && el.type === "time") {
-              // Aceptar hh:mm o hh:mm:ss, y asignar solo hh:mm
-              const m = /^(\d{1,2}):(\d{2})(?::\d{2})?$/.exec(r);
-              if (m) {
-                const hh = m[1].padStart(2, '0');
-                const mm = m[2];
-                el.value = `${hh}:${mm}`;
-              } else {
-                el.value = "";
-              }
-            } else {
-              el.value = r;
-            }
-            break;
-          }
-        }
+   function renderDelitos() {
+  lista.innerHTML = "";
+  if (delitosElegidos.length === 0) {
+    lista.innerHTML = '<em style="color: red; font-style: normal;">Ningún delito seleccionado</em>';
+  } else {
+    delitosElegidos.forEach((d, i) => {
+      const span = document.createElement("span");
+      span.textContent = d;
+      span.style.cssText = "padding:3px 6px; margin:2px; background:linear-gradient(90deg,#b8d9f1,#bea4fa); border:1px solid #99c; border-radius:4px; display:inline-block; cursor:pointer;";
+      span.title = "Click para eliminar";
+      span.addEventListener("click", () => {
+        delitosElegidos.splice(i, 1);
+        renderDelitos();
       });
+      lista.appendChild(span);
+    });
+  }
 
-      document.getElementById("message").innerText = "✅ XLSX cargado y formulario rellenado";
-    } catch (err) {
-      console.error(err);
-      document.getElementById("message").innerText = "❌ Error al cargar XLSX: " + (err?.message || err);
+  
+  const contenedor = document.getElementById("delitosSeleccionados");
+  if (contenedor) {
+    if (delitosElegidos.length > 0) {
+      contenedor.style.border = "1px solid #00ff7f";   
+      contenedor.style.color = "#222";                 
+    } else {
+      contenedor.style.border = "1px solid #cc0000";   
+      contenedor.style.color = "#cc0000";              
     }
+  }
+}
+renderDelitos(); 
+    
+    function normalizeKey(str) {
+      return str
+        ? str.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase().replace(/[^A-Z0-9]/g,"").trim()
+        : "";
+    }
+
+    
+    function setSelectWithInput(selectName, excelValue) {
+      const select = document.querySelector(`[name="${selectName}"]`);
+      if (!select) return;
+      const card = select.closest(".field-card");
+      const textInput = card ? card.querySelector("input[type=text], textarea") : null;
+      const normExcel = normalizeKey(excelValue);
+
+      let matched = false;
+      for (const opt of select.options) {
+        if (normalizeKey(opt.value) === normExcel) {
+          select.value = opt.value;
+          matched = true;
+          if (textInput) { textInput.value = ""; textInput.style.display = "none"; }
+          break;
+        }
+      }
+
+      if (!matched) {
+        if (!excelValue || ["NOAPORTA","NO","DEOFICIO"].includes(normExcel)) {
+          const fallback = Array.from(select.options).find(opt =>
+            ["NOAPORTA","NO","DEOFICIO"].includes(normalizeKey(opt.value))
+          );
+          if (fallback) select.value = fallback.value;
+          if (textInput) { textInput.value = ""; textInput.style.display = "none"; }
+        } else {
+          const otherOpt = Array.from(select.options).find(opt => normalizeKey(opt.value) === "OTRO");
+          if (otherOpt) select.value = otherOpt.value;
+          if (textInput) { textInput.value = excelValue; textInput.style.display = "block"; }
+        }
+      }
+    }
+
+    
+    async function saveBlobJson(text, filename){
+      const ensureJsonName = (name)=>{
+        const n = String(name || '').trim();
+        return n.toLowerCase().endsWith('.json') ? n : (n + '.json');
+      };
+      const safeName = ensureJsonName(filename);
+      const blob = new Blob([text], { type: 'application/json;charset=utf-8' });
+
+      
+      if (typeof window.showSaveFilePicker === 'function') {
+        const handle = await window.showSaveFilePicker({
+          suggestedName: safeName,
+          types: [{ description: 'JSON', accept: { 'application/json': ['.json'] } }],
+          excludeAcceptAllOption: false
+        });
+        const writable = await handle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+        return;
+      }
+
+      
+      alert('Tu navegador no permite seleccionar carpeta (no soporta File System Access API en este contexto). Se usará descarga directa.');
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = safeName;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 1500);
+    }
+
+    const RUTA_ROA = "./js/roa.html";
+
+function splitApellidos(s){
+  s = String(s||"").trim();
+  if(!s) return {primer:"",segundo:""};
+  const p = s.split(/\s+/);
+  return {primer:p[0]||"", segundo:p.slice(1).join(" ")};
+}
+
+function sexoAHoM(v){
+  const Uv = String(v||"").toUpperCase();
+  if(Uv.startsWith("MASC")) return "H";
+  if(Uv.startsWith("FEM"))  return "M";
+  return "";
+}
+
+function buildRoaPayloadFromRegistro(data){
+  const ap = splitApellidos(data["APELLIDOS"]);
+
+  const domDisplay = (data["DOMICILIO_OPCION"]==="APORTA")
+    ? ((document.getElementById('direccionDomicilio')?.value)||data["DOMICILIO"]||"")
+    : (data["DOMICILIO_OPCION"]||"");
+
+  const telDisplay = (data["TELÉFONO_OPCION"]==="OTRO")
+    ? (data["TELÉFONO"]||"")
+    : (data["TELÉFONO_OPCION"]||"");
+
+  const tipoDoc = data["TIPO DOCUMENTO_OPCION"]==="OTRO"
+    ? (data["TIPO DOCUMENTO"]||"")
+    : (data["TIPO DOCUMENTO_OPCION"]||"");
+
+  // Datos de nacimiento para ROA
+  const paisNac = (document.getElementById('paisNacimiento')?.value || "").trim();
+  const lugarFull = (data["LUGAR DE NACIMIENTO"] || "").trim();
+
+  let muniNac = "";
+  let provNac = "";
+
+  if (lugarFull) {
+    // Si es España, el hidden viene como "Municipio, Provincia"
+    const P = paisNac.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();
+    const esES = (P === "ESPAÑA" || P === "ESPANA" || P === "ES");
+    if (lugarFull.includes(",") && esES) {
+      const idx = lugarFull.lastIndexOf(",");
+      muniNac = lugarFull.slice(0, idx).trim();
+      provNac = lugarFull.slice(idx + 1).trim();
+    } else {
+      // Extranjero o sin coma: dejamos todo en "municipio" y provincia vacía
+      muniNac = lugarFull;
+      provNac = "";
+    }
+  }
+
+  return {
+    "TIPO DOCUMENTO": tipoDoc,
+    "NÚMERO DE DOCUMENTO": data["NºDOCUMENTO"] || "",
+    "NOMBRE": data["Nombre"] || "",
+    "PRIMER APELLIDO": ap.primer,
+    "SEGUNDO APELLIDO": ap.segundo,
+    "FECHA DE NACIMIENTO": data["FECHA DE NACIMIENTO"] || "",
+    "LUGAR DE NACIMIENTO": muniNac || "",
+    "PROVINCIA": provNac || "",
+    "PAÍS": paisNac || "",
+    "NACIONALIDAD": data["NACIONALIDAD"] || "",
+    "NOMBRE DE LOS PADRES": (data["NOMBRE_PADRES_OPCION"]==="OTRO"
+      ? (data["NOMBRE_PADRES"]||"")
+      : (data["NOMBRE_PADRES_OPCION"]||"")),
+    "PROFESIÓN": "",
+    "TELÉFONO": telDisplay,
+    "DOMICILIOS": domDisplay,
+    "ARMAS":"", "ALIAS":"", "CONSORTES":"", "EMPRESAS":"",
+    "LUGARES DE ACTUACION":"", "LUGARES DE FRECUENCIA":"", "ORGANIZACION":"",
+    "SEXO": sexoAHoM(data["SEXO_OPCION"]),
+    "TALLA":"", "COMPLEXION":"", "RAZA":"", "ACENTO":"", "CEJAS":"",
+    "LABIOS":"", "MENTON":"", "CARA":"", "PELO":"", "OJOS":"",
+    "NARIZ":"", "OREJAS":"", "MARCAS":"", "USAS":"", "VEHICULOS":"",
+    "DILIGENCIAS": data["DILIGENCIAS"] || "",
+    "FECHA DILIGENCIAS": data["FECHA_GENERACION"] || "",
+    "RESUMEN DILIGENCIAS": "",
+    "FUNCIONARIO EMISOR":"",
+    "FECHA DE CUMPLIMENTACION":""
   };
 }
-// Guardar con File System Access (evita MOTW)
-    async function saveBlob(blob, filename){
-      if(window.showSaveFilePicker){
-        try{
-          const handle=await window.showSaveFilePicker({
-            suggestedName:filename,
-            types:[{description:'Archivo ZIP',accept:{'application/zip':['.zip']}}]
-          });
-          const writable=await handle.createWritable();
-          await writable.write(blob); await writable.close(); return;
-        }catch(e){console.warn('FSA fallback',e);}
+    function validarRequeridos() {
+      const form = document.getElementById('registroForm');
+      if (!form) return true;
+      var divDelitos = document.getElementById('delitosSeleccionados');
+      if (divDelitos) {
+        var txt = (divDelitos.textContent || '').trim();
+        if (txt.indexOf('Ningún delito seleccionado') !== -1 || txt.indexOf('Ningun delito seleccionado') !== -1) {
+          alert('⚠️ Debes seleccionar al menos un delito.');
+          return false;
+        }
       }
-      const url=URL.createObjectURL(blob);
-      const a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);
-      a.click(); setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},1500);
+      const invalidos = Array.from(form.querySelectorAll('[required]')).filter(el => !el.value.trim());
+      if (invalidos.length > 0) {
+        alert("⚠️ Faltan campos obligatorios por rellenar:\n\n- " + invalidos.map(el => el.previousElementSibling?.innerText || el.name || el.id).join("\n- "));
+        invalidos[0].focus();
+        return false;
+      }
+      return true;
     }
 
-// Guardar XLSX (File System Access si existe; si no, fallback a <a download>)
-async function saveBlobXlsx(uint8, filename){
-  const blob = new Blob([uint8], {
-    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-  });
-  if (window.showSaveFilePicker) {
-    try {
-      const handle = await window.showSaveFilePicker({
-        suggestedName: filename,
-        types: [{
-          description: 'Libro de Excel',
-          accept: {'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx']}
-        }]
-      });
-      const writable = await handle.createWritable();
-      await writable.write(blob);
-      await writable.close();
-      return;
-    } catch(e) { console.warn('FSA fallback XLSX', e); }
-  }
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = filename;
-  document.body.appendChild(a); a.click();
-  setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 1500);
+    function validarPais(value, listId){
+  const v = (value||"").trim().toUpperCase();
+  const opts = [...document.querySelectorAll(`#${listId} option`)]
+               .map(o => o.value.toUpperCase());
+  return opts.includes(v);
 }
 
-// Generar SOLO el XLSX (misma forma de creación que ya tienes) y descargarlo
-async function generarSoloXLSX(){
-  const msg = document.getElementById("message");
-  msg.innerText = "Generando XLSX...";
+function validarPaisesRegistro(){
+  const nac = document.getElementById("nacionalidadInput").value;
+  const paisNac = document.getElementById("paisNacimiento").value;
 
-  try{
-    const form = document.getElementById("registroForm");
-    const fd = new FormData(form);
-    const data = {}; fd.forEach((v,k)=>data[k]=v);
-
-    // === Misma normalización que usas en generarZipUnicoSeguro ===
-    const U = s => String(s ?? '').toUpperCase();
-    const sanitizeForFilename = s => String(s||'').replace(/[\/\:*?"<>|]+/g,' ').trim();
-
-    // Tipo doc + Nº doc
-    const optTD = data["TIPO DOCUMENTO_OPCION"];
-    data["TIPO DOCUMENTO"] = (optTD === "OTRO") ? (data["TIPO DOCUMENTO"]||"") : optTD;
-    data["NºDOCUMENTO"] = (optTD === "INDOCUMENTADO/A") ? "" : (data["NºDOCUMENTO"] || "");
-    data["SEXO"] = data["SEXO_OPCION"] || "";
-    data["INSTRUCTOR"] = data["INSTRUCTOR"] || "";
-    data["FECHA_GENERACION"] = document.getElementById('fechaGeneracion')?.value || '';
-
-    // Delitos (usa la misma variable global y renderer que ya tienes)
-    let delitoTexto = "";
-    if (typeof delitosElegidos !== "undefined") {
-      if (delitosElegidos.length === 1) delitoTexto = delitosElegidos[0];
-      else if (delitosElegidos.length === 2) delitoTexto = delitosElegidos[0] + " y " + delitosElegidos[1];
-      else if (delitosElegidos.length > 2) delitoTexto = delitosElegidos.slice(0,-1).join(", ") + " y " + delitosElegidos[delitosElegidos.length-1];
-    }
-    data["DELITO"] = delitoTexto;
-
-    // Abogado / Comunicaciones / Informar
-    const abOpt = data["ABOGADO_OPCION"];
-    data["ABOGADO"] = (abOpt === "DE OFICIO") ? "de oficio." : (abOpt === "OTRO" ? (data["ABOGADO"]||"") : (data["ABOGADO"]||""));
-
-    const ccOpt = data["COMUNICARSE CON_OPCION"];
-    data["COMUNICARSE CON:"] = (ccOpt === "NADIE") ? "nadie." : (ccOpt === "OTRO" ? (data["COMUNICARSE CON:"]||"") : (data["COMUNICARSE CON:"]||""));
-
-    const infOpt = data["INFORMAR DE DETENCION_OPCION"];
-    data["INFORMAR DE DETENCION"] = (infOpt === "NADIE") ? "nadie." : (infOpt === "OTRO" ? (data["INFORMAR DE DETENCION"]||"") : (data["INFORMAR DE DETENCION"]||""));
-
-    // Intérprete
-    const intOpt = data["INTERPRETE_OPCION"] || "NO";
-    let interpreteDisplay = "NO";
-    if (intOpt === "OTRO") interpreteDisplay = data["IDIOMA"] || "";
-    else if (intOpt !== "NO") interpreteDisplay = intOpt;
-    data["IDIOMA"] = interpreteDisplay;
-    data["INTERPRETE"] = interpreteDisplay;
-
-    // Selects NO APORTA/OTRO ⇒ muestra valor final
-    const nomDisplay = (data["NOMBRE_PADRES_OPCION"]==="OTRO") ? (data["NOMBRE_PADRES"]||"") : (data["NOMBRE_PADRES_OPCION"]||"");
-    const domDisplay = (data["DOMICILIO_OPCION"]==="OTRO") ? (data["DOMICILIO"]||"") : (data["DOMICILIO_OPCION"]||"");
-    const telDisplay = (data["TELÉFONO_OPCION"]==="OTRO") ? (data["TELÉFONO"]||"") : (data["TELÉFONO_OPCION"]||"");
-    data["NOMBRE_PADRES"] = nomDisplay;
-    data["Nombre de los Padres"] = nomDisplay;
-    data["DOMICILIO"] = domDisplay;
-    data["TELÉFONO"] = telDisplay;
-
-    data["MEDICO"] = (data["MEDICO"]==="SI") ? "SI" : "NO";
-    data["CONSULADO"] = (data["CONSULADO"]==="SI") ? "SI" : "NO";
-
-    // === MISMAS FILAS que ya montas antes de llamar a generarXLSXUint8 ===
-    const hoy = new Date();
-    const dd = String(hoy.getDate()).padStart(2,'0');
-    const mm = String(hoy.getMonth()+1).padStart(2,'0');
-    const yyyy = String(hoy.getFullYear());
-    const fechaStr = `${dd}-${mm}-${yyyy}`;
-
-    const filas = [
-      ["Nombre", U(data["Nombre"])],
-      ["Apellidos", U(data["APELLIDOS"])],
-      ["Tipo de documento", U(data["TIPO DOCUMENTO"])],
-      ["Nº Documento", U(data["NºDOCUMENTO"])],
-      ["Sexo", U(data["SEXO"])],
-      ["Nacionalidad", U(data["NACIONALIDAD"])],
-      ["Nombre de los Padres", U(data["Nombre de los Padres"])],
-      ["Fecha de nacimiento", U(data["FECHA DE NACIMIENTO"])],
-      ["Lugar de nacimiento", U(data["LUGAR DE NACIMIENTO"])],
-      ["Domicilio", U(domDisplay)],
-      ["Teléfono", U(telDisplay)],
-      ["Delito", U(data["DELITO"])],
-      ["C.P. Agentes", U(data["C.P. AGENTES"])],
-      ["Diligencias", U(data["DILIGENCIAS"])],
-      ["Instructor", U(data["INSTRUCTOR"])],
-      ["Lugar del hecho", U(data["LUGAR DEL HECHO"])],
-      ["Lugar de la detención", U(data["LUGAR DE LA DETENCIÓN"])],
-      ["Hora del hecho", (document.getElementById('horaHecho')?.value || data["HORA DEL HECHO"] || "").trim()],
-      ["Hora de la detención", (document.getElementById('horaDetencion')?.value || data["HORA DE LA DETENCIÓN"] || "").trim()],
-      ["Breve resumen de los hechos", U(data["BREVE RESUMEN DE LOS HECHOS"])],
-      ["Indicios por los que se detiene", U(data["INDICIOS POR LOS QUE SE DETIENE"])],
-      ["Abogado", U(data["ABOGADO"])],
-      ["Comunicarse con", U(data["COMUNICARSE CON:"])],
-      ["Informar de detención", U(data["INFORMAR DE DETENCION"])],
-      ["Intérprete", U(interpreteDisplay)],
-      ["Médico", U(data["MEDICO"])],
-      ["Consulado", U(data["CONSULADO"])],
-      ["Indicativo", U(data["Indicativo"])],
-      ["Fecha de generación", U(data["FECHA_GENERACION"])]
-    ];
-
-    // === MISMA CREACIÓN DEL XLSX ===
-    const xlsx = await generarXLSXUint8(filas, "Resumen");
-
-    // Nombre de archivo como ya hacías
-    const excelName = `${sanitizeForFilename(data["Nombre"]||"")} ${sanitizeForFilename(data["APELLIDOS"]||"")} ${fechaStr}.xlsx`.trim() || "Resumen.xlsx";
-
-    // Descargar solo el XLSX
-    await saveBlobXlsx(xlsx, excelName);
-
-    msg.innerText = "✅ XLSX generado y descargado";
-  } catch(err){
-    console.error(err);
-    msg.innerText = "❌ " + (err?.message || err);
+  if (!validarPais(nac,"listaNacionalidad")){
+    alert("⚠️ La nacionalidad debe coincidir con un país del listado.");
+    return false;
   }
+  if (!validarPais(paisNac,"listaPaisNacimiento")){
+    alert("⚠️ El país de nacimiento debe coincidir con un país del listado.");
+    return false;
+  }
+  return true;
 }
 
+function validarIndicativo(){
+  const inp = document.getElementById('indicativotexto');
+  if (!inp) return true;
+  let v = (inp.value||'').trim();
+  if (!v) return true; // el required ya se controla en validarRequeridos
+  v = v.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();
+  const opts = [...document.querySelectorAll('#indicativos option')]
+               .map(o => (o.value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase())
+               .filter(Boolean);
+  const ok = opts.some(t => v.includes(t));
+  if (!ok){
+    alert('⚠️ El indicativo debe contener al menos una de las opciones del listado (América, Troya, Chacal o Faro Adeje).');
+    inp.focus();
+    return false;
+  }
+  return true;
+}
 
+    const _exportarJSON = window.exportarJSON;
+    window.exportarJSON = async function(){
+      if (!validarRequeridos()) return;
+      if (!validarPaisesRegistro()) return;
+      if (!validarIndicativo()) return;
+      return _exportarJSON.apply(this, arguments);
+    };
 
+    async function exportarJSON(){
+      if (!validarRequeridos()) return;
+      if (!validarPaisesRegistro()) return;
+      if (!validarIndicativo()) return;
+      const msg = document.getElementById("message");
+      msg.innerText = "Generando JSON...";
+      // Coordenadas gestionadas desde Compapol; no son obligatorias en este formulario.
 
-    // Generar ODT con reemplazos en MAYÚSCULAS
-    async function generarODTUint8(base64,dataUpper){
-      const bytes=Uint8Array.from(atob(base64.replace(/[\r\n\t ]+/g,"")),c=>c.charCodeAt(0));
-      const zip=await JSZip.loadAsync(bytes);
-      let xml=await zip.file("content.xml").async("string");
+      // === REQUISITO: LUGAR DEL HECHO y DETENCIÓN OBLIGATORIOS (municipio + vía del callejero) ===
+      (function(){
+        const msg = document.getElementById('message');
+        const selH = document.getElementById('munHechoSel');
+        const viaH = document.getElementById('viaHecho');
+        const selD = document.getElementById('munDetSel');
+        const viaD = document.getElementById('viaDet');
+        const U = s => String(s||'').trim().toUpperCase();
+        const esVal = (m,v)=>{
+          try{ return (typeof window.esCalleValida === 'function') ? !!window.esCalleValida(m,v) : true; }catch(_){ return true; }
+        };
+        // Hecho
+        const mH = U(selH && selH.value);
+        const vH = viaH && viaH.value;
+        if (!mH || mH==='OTRO'){
+          if (msg) { msg.innerText='⚠️ Selecciona municipio del hecho (ADEJE o ARONA).'; msg.style.color='#ff6f00'; }
+          alert('⚠️ Selecciona municipio del hecho (ADEJE o ARONA).');
+          if (selH) selH.focus();
+          throw new Error('Falta municipio del hecho');
+        }
+        if (!vH){
+          if (msg) { msg.innerText='⚠️ Escribe la vía del hecho.'; msg.style.color='#ff6f00'; }
+          alert('⚠️ Escribe la vía del hecho.');
+          if (viaH) viaH.focus();
+          throw new Error('Falta vía del hecho');
+        }
+        if (!esVal(mH, vH)){
+          if (msg) { msg.innerText='⚠️ La vía del hecho debe existir en el callejero de '+mH+'.'; msg.style.color='#ff6f00'; }
+          alert('⚠️ La vía del hecho debe existir en el callejero de '+mH+'.');
+          if (viaH) viaH.focus();
+          throw new Error('Vía del hecho no válida');
+        }
+        // Detención
+        const mD = U(selD && selD.value);
+        const vD = viaD && viaD.value;
+        if (!mD || mD==='OTRO'){
+          if (msg) { msg.innerText='⚠️ Selecciona municipio de la detención (ADEJE o ARONA).'; msg.style.color='#ff6f00'; }
+          alert('⚠️ Selecciona municipio de la detención (ADEJE o ARONA).');
+          if (selD) selD.focus();
+          throw new Error('Falta municipio detención');
+        }
+        if (!vD){
+          if (msg) { msg.innerText='⚠️ Escribe la vía de la detención.'; msg.style.color='#ff6f00'; }
+          alert('⚠️ Escribe la vía de la detención.');
+          if (viaD) viaD.focus();
+          throw new Error('Falta vía detención');
+        }
+        if (!esVal(mD, vD)){
+          if (msg) { msg.innerText='⚠️ La vía de la detención debe existir en el callejero de '+mD+'.'; msg.style.color='#ff6f00'; }
+          alert('⚠️ La vía de la detención debe existir en el callejero de '+mD+'.');
+          if (viaD) viaD.focus();
+          throw new Error('Vía detención no válida');
+        }
+      })();
 
-      for(const k in dataUpper){
-        const v=(dataUpper[k]??"").toString();
-        xml = xml.replace(buildFlexibleRegex(k), v);
-        xml = xml.replace(new RegExp("\{\{\s*"+escapeRegExp(k)+"\s*\}\}","g"), v);
-      }
-      // Limpia cualquier resto {{...}}
-      xml = xml.replace(/{{\s*[^}]+\s*}}/g,"");
+      try{
+        const form = document.getElementById("registroForm");
+        const fd = new FormData(form);
+        const data = {}; fd.forEach((v,k)=>data[k]=v);
 
-      zip.file("content.xml",xml);
-      return await zip.generateAsync({type:"uint8array",compression:"DEFLATE"});
-    }
-
-    // Generar XLSX sin cabecera, dos columnas, ancho máx 40 chars, A derecha, B centrada, horas con formato h:mm
-    async function generarXLSXUint8(rows, sheetName="Resumen"){
-      const x = new JSZip();
-
-      const contentTypes =
-`<?xml version="1.0" encoding="UTF-8"?>
-<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
-  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
-  <Default Extension="xml" ContentType="application/xml"/>
-  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
-  <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
-  <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
-  <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
-  <Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>
-</Types>`;
-
-      const rels =
-`<?xml version="1.0" encoding="UTF-8"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
-  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>
-  <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>
-</Relationships>`;
-
-      const wb =
-`<?xml version="1.0" encoding="UTF-8"?>
-<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"
- xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
-  <bookViews><workbookView/></bookViews>
-  <sheets>
-    <sheet name="${xmlEscape(sheetName)}" sheetId="1" r:id="rId1"/>
-  </sheets>
-</workbook>`;
-
-      const wbRels =
-`<?xml version="1.0" encoding="UTF-8"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
-  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
-</Relationships>`;
-
-      // Estilos: 0 base, 1 preguntas (derecha), 2 respuestas (centro), 3 hora (centro + num)
-      const styles =
-`<?xml version="1.0" encoding="UTF-8"?>
-<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-  <numFmts count="1">
-    <numFmt numFmtId="165" formatCode="h:mm"/>
-  </numFmts>
-  <fonts count="1">
-    <font><sz val="11"/><color theme="1"/><name val="Calibri"/></font>
-  </fonts>
-  <fills count="1"><fill><patternFill patternType="none"/></fill></fills>
-  <borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>
-  <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
-  <cellXfs count="4">
-    <xf numFmtId="0" fontId="0" fillId="0" borderId="0" applyAlignment="1"><alignment wrapText="1" vertical="top"/></xf>
-    <xf numFmtId="0" fontId="0" fillId="0" borderId="0" applyAlignment="1"><alignment wrapText="1" vertical="top" horizontal="right"/></xf>
-    <xf numFmtId="0" fontId="0" fillId="0" borderId="0" applyAlignment="1"><alignment wrapText="1" vertical="center" horizontal="center"/></xf>
-    <xf numFmtId="165" fontId="0" fillId="0" borderId="0" applyNumberFormat="1" applyAlignment="1"><alignment vertical="center" horizontal="center"/></xf>
-  </cellXfs>
-  <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
-</styleSheet>`;
-
-      // Ancho máx 40 caracteres en ambas columnas
-      const cols = `<cols>
-        <col min="1" max="1" width="40" customWidth="1"/>
-        <col min="2" max="2" width="40" customWidth="1"/>
-      </cols>`;
-
-      // Utilidad para convertir "HH:MM" a fracción de día Excel
-      function parseTimeToExcelFraction(str){
-        const m = /^(\d{1,2}):(\d{2})$/.exec(str||"");
-        if(!m) return null;
-        const h = Math.min(23, parseInt(m[1],10));
-        const mm = Math.min(59, parseInt(m[2],10));
-        return (h/24) + (mm/1440);
-      }
-
-      function cellInline(r, cIdx, text, style){
-        const col = (cIdx===1?'A':'B');
-        const ref = col + r;
-        const s = (style!=null)?` s="${style}"`:'';
-        return `<c r="${ref}" t="inlineStr"${s}><is><t>${xmlEscape(text||'')}</t></is></c>`;
-      }
-      function cellNumber(r, cIdx, num, style){
-        const col = (cIdx===1?'A':'B');
-        const ref = col + r;
-        const the_s = (style!=null)?` s="${style}"`:'';
-        return `<c r="${ref}"${the_s}><v>${num}</v></c>`;
-      }
-
-      let rowXml = '';
-      for(let i=0;i<rows.length;i++){
-        const r = i+1;
-        const pregunta = rows[i][0] ?? '';
-        const respuesta = rows[i][1] ?? '';
-
-        // Columna A: preguntas, DERECHA (style 1)
-        const a = cellInline(r,1,pregunta,1);
-
-        // Columna B: respuestas, CENTRO (style 2) o HORA (style 3)
-        let b;
-        if(pregunta==="Hora del hecho" || pregunta==="Hora de la detención"){
-          const frac = parseTimeToExcelFraction(respuesta);
-          if(frac!=null){ b = cellNumber(r,2,frac,3); } else { b = cellInline(r,2,respuesta,2); }
-        } else {
-          b = cellInline(r,2,respuesta,2);
+        const UPP = s => String(s ?? '').trim();
+        function toESDate(s){
+          const t = String(s||'').trim();
+          let m = t.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+          if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+          m = t.match(/^(\d{2})[\/\-](\d{2})[\/\-](\d{4})$/);
+          if (m) return `${m[1]}/${m[2]}/${m[3]}`;
+          return t;
         }
 
-        rowXml += `<row r="${r}" spans="1:2">${a}${b}</row>`;
-      }
-
-      const sheet =
-`<?xml version="1.0" encoding="UTF-8"?>
-<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"
- xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
-  ${cols}
-  <sheetData>
-    ${rowXml}
-  </sheetData>
-  <sheetViews>
-    <sheetView tabSelected="1" workbookViewId="0"/>
-  </sheetViews>
-</worksheet>`;
-
-      const core =
-`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties"
- xmlns:dc="http://purl.org/dc/elements/1.1/"
- xmlns:dcterms="http://purl.org/dc/terms/"
- xmlns:dcmitype="http://purl.org/dcmitype/"
- xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-  <dc:title>Resumen Registro</dc:title>
-  <dc:subject>Registro de Detenidos</dc:subject>
-  <dc:creator>Formulario Registro</dc:creator>
-  <cp:lastModifiedBy>Formulario Registro</cp:lastModifiedBy>
-  <dcterms:created xsi:type="dcterms:W3CDTF">${new Date().toISOString()}</dcterms:created>
-  <dcterms:modified xsi:type="dcterms:W3CDTF">${new Date().toISOString()}</dcterms:modified>
-</cp:coreProperties>`;
-
-      const app =
-`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"
- xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">
-  <Application>Formulario Registro</Application>
-  <DocSecurity>0</DocSecurity>
-  <ScaleCrop>false</ScaleCrop>
-  <Company></Company>
-  <LinksUpToDate>false</LinksUpToDate>
-  <SharedDoc>false</SharedDoc>
-  <HyperlinksChanged>false</HyperlinksChanged>
-  <AppVersion>16.0000</AppVersion>
-</Properties>`;
-
-      x.file('[Content_Types].xml', contentTypes);
-      x.folder('_rels').file('.rels', rels);
-      const xl = x.folder('xl');
-      xl.file('workbook.xml', wb);
-      xl.folder('_rels').file('workbook.xml.rels', wbRels);
-      xl.file('styles.xml', styles);
-      xl.folder('worksheets').file('sheet1.xml', sheet);
-      const props = x.folder('docProps');
-      props.file('core.xml', core);
-      props.file('app.xml', app);
-
-      return await x.generateAsync({type:'uint8array'});
-    }
-
-    async function generarZipUnicoSeguro(){
-      const msg=document.getElementById("message"); msg.innerText="Generando ZIP...";
-      try{
-        const form=document.getElementById("registroForm");
-        const fd=new FormData(form); const data={}; fd.forEach((v,k)=>data[k]=v);
-
-
-        // Normalizaciones previas
-        const optTD=data["TIPO DOCUMENTO_OPCION"];
-        data["TIPO DOCUMENTO"] = (optTD==="OTRO") ? (data["TIPO DOCUMENTO"]||"") : optTD;
-        if(optTD==="INDOCUMENTADO/A"){ data["NºDOCUMENTO"] = ""; } else { data["NºDOCUMENTO"] = data["NºDOCUMENTO"] || ""; }
-        data["SEXO"]=data["SEXO_OPCION"] || "";
+        const optTD = data["TIPO DOCUMENTO_OPCION"];
+        const up = String(optTD||"").toUpperCase();
+        if (up === "INDOCUMENTADO" || up === "INDOCUMENTADA") {
+          data["TIPO DOCUMENTO"] = (up === "INDOCUMENTADA") ? "Indocumentada" : "Indocumentado";
+        } else if (optTD === "OTRO") {
+          data["TIPO DOCUMENTO"] = data["TIPO DOCUMENTO"]||"";
+        } else {
+          data["TIPO DOCUMENTO"] = optTD;
+        }
+        data["NºDOCUMENTO"] = (up === "INDOCUMENTADO" || up === "INDOCUMENTADA") ? "" : (data["NºDOCUMENTO"] || "");
+        data["SEXO"] = data["SEXO_OPCION"] || "";
         data["INSTRUCTOR"] = data["INSTRUCTOR"] || "";
-	data["FECHA_GENERACION"] = document.getElementById('fechaGeneracion')?.value || '';
+        data["FECHA_GENERACION"] = document.getElementById('fechaGeneracion')?.value || '';
 
-	// 📌 Normalizar delitos elegidos en sub-globo
-let delitoTexto="";
-if (delitosElegidos.length===1){
-  delitoTexto=delitosElegidos[0];
-} else if (delitosElegidos.length===2){
-  delitoTexto=delitosElegidos[0]+" y "+delitosElegidos[1];
-} else if (delitosElegidos.length>2){
-  delitoTexto=delitosElegidos.slice(0,-1).join(", ")+" y "+delitosElegidos[delitosElegidos.length-1];
-}
-data["DELITO"]=delitoTexto;
+        let delitoTexto = "";
+        if (typeof delitosElegidos !== "undefined") {
+          if (delitosElegidos.length === 1) delitoTexto = delitosElegidos[0];
+          else if (delitosElegidos.length === 2) delitoTexto = delitosElegidos[0] + " y " + delitosElegidos[1];
+          else if (delitosElegidos.length > 2) delitoTexto = delitosElegidos.slice(0,-1).join(", ") + " y " + delitosElegidos[delitosElegidos.length-1];
+        }
+        data["DELITO"] = delitoTexto;
 
         const abOpt = data["ABOGADO_OPCION"];
-        if(abOpt==="DE OFICIO"){ data["ABOGADO"]="de oficio."; }
-        else if(abOpt==="OTRO"){ data["ABOGADO"]= (data["ABOGADO"]||""); }
-        else { data["ABOGADO"]= data["ABOGADO"] || ""; }
+        data["ABOGADO"] = (abOpt === "DE OFICIO") ? "de oficio." : (abOpt === "OTRO" ? (data["ABOGADO"]||"") : (data["ABOGADO"]||""));
 
         const ccOpt = data["COMUNICARSE CON_OPCION"];
-        if(ccOpt==="NADIE"){ data["COMUNICARSE CON:"]="nadie."; }
-        else if(ccOpt==="OTRO"){ data["COMUNICARSE CON:"]= (data["COMUNICARSE CON:"]||""); }
-        else { data["COMUNICARSE CON:"]= data["COMUNICARSE CON:"] || ""; }
+        data["COMUNICARSE CON:"] = (ccOpt === "NADIE") ? "nadie." : (ccOpt === "OTRO" ? (data["COMUNICARSE CON:"]||"") : (data["COMUNICARSE CON:"]||""));
 
-		const infOpt = data["INFORMAR DE DETENCION_OPCION"];
-		if(infOpt==="NADIE"){ data["INFORMAR DE DETENCION"]="nadie."; }
-		else if(infOpt==="OTRO"){ data["INFORMAR DE DETENCION"]= (data["INFORMAR DE DETENCION"]||""); }
-		else { data["INFORMAR DE DETENCION"]= data["INFORMAR DE DETENCION"] || ""; }
+        const infOpt = data["INFORMAR DE DETENCION_OPCION"];
+        data["INFORMAR DE DETENCION"] = (infOpt === "NADIE") ? "nadie." : (infOpt === "OTRO" ? (data["INFORMAR DE DETENCION"]||"") : (data["INFORMAR DE DETENCION"]||""));
 
         const intOpt = data["INTERPRETE_OPCION"] || "NO";
-let interpreteDisplay = "NO";
+        let interpreteDisplay = "NO";
+        if (intOpt === "OTRO") interpreteDisplay = data["IDIOMA"] || "";
+        else if (intOpt !== "NO") interpreteDisplay = intOpt;
+        data["IDIOMA"] = interpreteDisplay;
+        data["INTERPRETE"] = interpreteDisplay;
 
-if (intOpt === "OTRO") {
-  interpreteDisplay = data["IDIOMA"] || "";
-} else if (intOpt !== "NO") {
-  // Si es INGLÉS, ÁRABE, ITALIANO, RUSO...
-  interpreteDisplay = intOpt;
-
-// 🔑 Alias para ODT: soportar {{IDIOMA}} o {{INTERPRETE}}
-data["IDIOMA"] = interpreteDisplay;
-data["INTERPRETE"] = interpreteDisplay;
-
-}
-
-	const nomDisplay = (data["NOMBRE_PADRES_OPCION"]==="OTRO") ? (data["NOMBRE_PADRES"]||"") : (data["NOMBRE_PADRES_OPCION"]||"");
-        const domDisplay = (data["DOMICILIO_OPCION"]==="OTRO") ? (data["DOMICILIO"]||"") : (data["DOMICILIO_OPCION"]||"");
+        const nomDisplay = (data["NOMBRE_PADRES_OPCION"]==="OTRO") ? (data["NOMBRE_PADRES"]||"") : (data["NOMBRE_PADRES_OPCION"]||"");
+        const domDisplay = (data["DOMICILIO_OPCION"]==="APORTA") ? ((document.getElementById('direccionDomicilio')?.value) || data["DOMICILIO"] || "") : (data["DOMICILIO_OPCION"]||"");
         const telDisplay = (data["TELÉFONO_OPCION"]==="OTRO") ? (data["TELÉFONO"]||"") : (data["TELÉFONO_OPCION"]||"");
+
+        data["NOMBRE_PADRES"] = nomDisplay;
+        data["Nombre de los Padres"] = nomDisplay;
+        data["DOMICILIO"] = domDisplay;
+        data["TELÉFONO"] = telDisplay;
 
         data["MEDICO"] = (data["MEDICO"]==="SI") ? "SI" : "NO";
         data["CONSULADO"] = (data["CONSULADO"]==="SI") ? "SI" : "NO";
 
-        // Asegurar que en ODT también salga "NO APORTA" si es la opción por defecto
-	data["NOMBRE_PADRES"] = nomDisplay;
-	data["Nombre de los Padres"] = nomDisplay;
-        data["DOMICILIO"] = domDisplay;
-        data["TELÉFONO"] = telDisplay;
+        const hoy = new Date();
+        const dd = String(hoy.getDate()).padStart(2,'0');
+        const mm = String(hoy.getMonth()+1).padStart(2,'0');
+        const yyyy = String(hoy.getFullYear());
+        const fechaStr = `${dd}-${mm}-${yyyy}`;
 
-        // Construir mapa en MAYÚSCULAS para ODT
-        const dataUpper = {};
-        for(const k in data){
-          dataUpper[k] = U(data[k]);
+        
+        if (!data["municipio-hecho"] && document.getElementById('munHechoSel')) {
+          (function(){
+            const sel = document.getElementById('munHechoSel');
+            const otro = document.getElementById('munHechoOtro');
+            const vSel = (sel?.value||'').trim().toUpperCase();
+            const val = vSel==='OTRO' ? (otro?.value||'') : vSel;
+            const up = String(val||'').trim().toUpperCase();
+            data["municipio-hecho"] = up==='ADEJE' ? 'Adeje' : (up==='ARONA' ? 'Arona' : (String(val||'').trim().toLowerCase().replace(/\b([A-Za-zÀ-ÖØ-öø-ÿ])/g, m=>m.toUpperCase())));
+          })();
         }
-const zip = new JSZip();
-        // 🔎 Construir nombre base para carpeta y archivos
-function removeDiacritics(s){
-  return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/ñ/gi,'n');
-}
+        if (!data["municipio-detencion"] && document.getElementById('munDetSel')) {
+          (function(){
+            const sel = document.getElementById('munDetSel');
+            const otro = document.getElementById('munDetOtro');
+            const vSel = (sel?.value||'').trim().toUpperCase();
+            const val = vSel==='OTRO' ? (otro?.value||'') : vSel;
+            const up = String(val||'').trim().toUpperCase();
+            data["municipio-detencion"] = up==='ADEJE' ? 'Adeje' : (up==='ARONA' ? 'Arona' : (String(val||'').trim().toLowerCase().replace(/\b([A-Za-zÀ-ÖØ-öø-ÿ])/g, m=>m.toUpperCase())));
+          })();
+        }
 
-const diligPartRaw = String(data["DILIGENCIAS"] || '').replace(/\//g, '-').trim();
-const delitoPart   = String(data["DELITO"] || '').trim();
-const nombrePart   = String(data["Nombre"] || '').trim();
-const apellidosPart= String(data["APELLIDOS"] || '').trim();
+        
+        function titleCase(s){
+          s = String(s||'').trim();
+          if (!s) return '';
+          return s.toLowerCase().replace(/\b([a-záéíóúüñ])/gi, m => m.toUpperCase());
+        }
+        function titleCaseParents(s){
+          s = titleCase(s);
+          return s.replace(/\b(De|Del|La|Los|Las|Y)\b/gi, m => m.toLowerCase());
+        }
+        function getTipoVia(via){
+          const t = String(via||'').trim();
+          if (!t) return '';
+          const m = t.match(/^([A-ZÁÉÍÓÚÜÑ]+|[A-Za-zÁÉÍÓÚÜÑ]+)\b/);
+          if (!m) return '';
+          
+          return titleCase(m[1]);
+        }
+        function normalizarViaConTipo(via){
+          const v = String(via||'').trim();
+          if (!v) return '';
+          const tipo = getTipoVia(v);
+          if (!tipo) return v;
+          
+          return v.replace(/^([A-ZÁÉÍÓÚÜÑ]+|[A-Za-zÁÉÍÓÚÜÑ]+)\b/, tipo);
+        }
+        
+        function splitViaTipoNombre(via){
+          const v = String(via||'').trim();
+          if (!v) return { tipo:'', nombre:'' };
+          const tipo = getTipoVia(v);
+          if (!tipo) return { tipo:'', nombre:v };
+          const nombre = v.replace(/^([A-ZÁÉÍÓÚÜÑ]+|[A-Za-zÁÉÍÓÚÜÑ]+)\b\s*/,'').trim();
+          return { tipo, nombre };
+        }
+        function buildLugar(via, resto, muni){
+          const v = normalizarViaConTipo(via);
+          const r = String(resto||'').trim();
+          const m = String(muni||'').trim();
+          const dir = v ? (r ? (v + ' ' + r) : v) : (r || '');
+          return m ? (dir ? `${dir}, ${m}` : m) : dir;
+        }
+        function getMuniFromUI(selId, otroId){
+          const sel = document.getElementById(selId);
+          const otro = document.getElementById(otroId);
+          if (!sel) return '';
+          const val = String(sel.value||'').trim();
+          if (val.toUpperCase() === 'OTRO') return String(otro?.value||'').trim();
+          return val;
+        }
 
-let combined = `${diligPartRaw} ${delitoPart} ${nombrePart} ${apellidosPart}`.trim()
-  .replace(/_/g,' ')
-  .replace(/\s+/g,' ');
+        
+        const _viaHVal   = document.getElementById('viaHecho')?.value || '';
+        const _restoHVal = document.getElementById('restoHecho')?.value || '';
+        const _muniHVal  = getMuniFromUI('munHechoSel','munHechoOtro');
+        const _tipoViaH  = getTipoVia(_viaHVal);
+        
+        const _viaHechoLower = (function(){
+          const p = splitViaTipoNombre(_viaHVal);
+          return (p.tipo ? (p.tipo + ' ' + p.nombre) : p.nombre);
+        })();
+        const _viasinHechoLower = splitViaTipoNombre(_viaHVal).nombre;
+        const _lugarHechoFull = buildLugar(_viaHVal, _restoHVal, _muniHVal);
 
-combined = removeDiacritics(combined).replace(/[^A-Za-z0-9 -]/g,'').trim();
+        
+        const _viaDVal   = document.getElementById('viaDet')?.value || '';
+        const _restoDVal = document.getElementById('restoDet')?.value || '';
+        const _muniDVal  = getMuniFromUI('munDetSel','munDetOtro');
+        const _tipoViaD  = getTipoVia(_viaDVal);
+        const _viaDetLower = (function(){
+          const p = splitViaTipoNombre(_viaDVal);
+          return (p.tipo ? (p.tipo + ' ' + p.nombre) : p.nombre);
+        })();
+        const _viasinDetLower   = splitViaTipoNombre(_viaDVal).nombre;
+        const _lugarDetFull = buildLugar(_viaDVal, _restoDVal, _muniDVal);
 
-const base = combined.toUpperCase() || "DOCUMENTO";
+        const jsonOut = {
+          "Nombre": titleCase(data["Nombre"]),
+          "Apellidos": String(data["APELLIDOS"]||"").toUpperCase().trim(),
+          "Tipo de documento": UPP(data["TIPO DOCUMENTO"]),
+          "Nº Documento": String(data["NºDOCUMENTO"]||"").toUpperCase().trim(),
+          "Sexo": UPP(data["SEXO"]),
+          "Nacionalidad": titleCase(data["NACIONALIDAD"]),
+          "Nombre de los Padres": titleCaseParents(data["Nombre de los Padres"]),
+          "Fecha de nacimiento": UPP(toESDate(data["FECHA DE NACIMIENTO"])),
+          "Lugar de nacimiento": UPP(data["LUGAR DE NACIMIENTO"]),
+          "Domicilio": titleCase(domDisplay),
+          "Teléfono": UPP(telDisplay),
+          "Delito": UPP(data["DELITO"]),
+          "C.P. Agentes": UPP(data["C.P. AGENTES"]),
+          "Diligencias": UPP(data["DILIGENCIAS"]),
+          "Instructor": UPP(data["INSTRUCTOR"]),
+          "Lugar del hecho": _lugarHechoFull,
+          "Lugar de la detención": _lugarDetFull,
+          "tipovia-hecho": _tipoViaH,
+          "tipovia-detencion": _tipoViaD,
+          "restodireccion-hecho": _restoHVal,
+          "restodireccion-detencion": _restoDVal,
+          "via-hecho": _viaHechoLower,
+          "via-detencion": _viaDetLower,
+          "viasin-hecho": _viasinHechoLower,
+          "viasin-detencion": _viasinDetLower,
+          "municipio-hecho": data["municipio-hecho"] || "",
+          "municipio-detencion": data["municipio-detencion"] || "",
+          "Hora del hecho": (document.getElementById('horaHecho')?.value || data["HORA DEL HECHO"] || "").trim(),
+          "Hora de la detención": (document.getElementById('horaDetencion')?.value || data["HORA DE LA DETENCIÓN"] || "").trim(),
+          "Breve resumen de los hechos": UPP(data["BREVE RESUMEN DE LOS HECHOS"]),
+          "Indicios por los que se detiene": UPP(data["INDICIOS POR LOS QUE SE DETIENE"]),
+          "Abogado": UPP(data["ABOGADO"]),
+          "Comunicarse con": UPP(data["COMUNICARSE CON:"]),
+          "Informar de detención": UPP(data["INFORMAR DE DETENCION"]),
+          "Intérprete": UPP(interpreteDisplay),
+          "Médico": UPP(data["MEDICO"]),
+          "Consulado": UPP(data["CONSULADO"]),
+          "Indicativo": UPP(data["Indicativo"]),
+          "Fecha de generación": UPP(data["FECHA_GENERACION"]),
+          "Condición": "Detenido"
+        };
 
-// 📂 Crear carpeta interna del ZIP
-const folder = zip.folder(base);
+        
+(function(){
+  
+  function _titleCase(s){
+    s = String(s||'').toLowerCase().trim();
+    if (!s) return "";
+    return s.split(/\s+/).map(w=>w.charAt(0).toUpperCase()+w.slice(1)).join(" ");
+  }
+  function _capMuni(s){
+    const u = String(s||'').trim().toUpperCase();
+    if (u === 'ADEJE') return 'Adeje';
+    if (u === 'ARONA') return 'Arona';
+    return _titleCase(s);
+  }
+  
+  let muniHecho = "";
+  try{
+    const selH = document.getElementById('munHechoSel');
+    const otroH = document.getElementById('munHechoOtro');
+    const vSel  = (selH?.value || "").trim().toUpperCase();
+    if (vSel === "OTRO") {
+      muniHecho = String(otroH?.value || "").trim();
+    } else {
+      muniHecho = String(vSel || "").trim();
+    }
+  }catch(_e){}
+  if (!muniHecho) {
+    try{
+      const lh = String(jsonOut["Lugar del hecho"] || "").trim();
+      const p  = lh.lastIndexOf(",");
+      if (p !== -1) muniHecho = lh.slice(p+1).trim();
+    }catch(_e){}
+  }
+  jsonOut["municipio-hecho"] = _capMuni(muniHecho);
 
-// 👮‍♂️ Calcular edad
-function calcularEdad(fechaStr){
-  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(fechaStr||"");
-  if(!m) return null;
-  const dia=parseInt(m[1],10), mes=parseInt(m[2],10)-1, anio=parseInt(m[3],10);
-  const nacimiento=new Date(anio, mes, dia), hoy=new Date();
-  let edad=hoy.getFullYear()-nacimiento.getFullYear();
-  const mDiff=hoy.getMonth()-nacimiento.getMonth();
-  if(mDiff<0 || (mDiff===0 && hoy.getDate()<nacimiento.getDate())) edad--;
-  return edad;
-}
-const edad = calcularEdad(data["FECHA DE NACIMIENTO"]);
+  
+  let muniDet = "";
+  try{
+    const selD = document.getElementById('munDetSel');
+    const otroD = document.getElementById('munDetOtro');
+    const vSel  = (selD?.value || "").trim().toUpperCase();
+    if (vSel === "OTRO") {
+      muniDet = String(otroD?.value || "").trim();
+    } else {
+      muniDet = String(vSel || "").trim();
+    }
+  }catch(_e){}
+  if (!muniDet) {
+    try{
+      const ld = String(jsonOut["Lugar de la detención"] || "").trim();
+      const p  = ld.lastIndexOf(",");
+      if (p !== -1) muniDet = ld.slice(p+1).trim();
+    }catch(_e){}
+  }
+  jsonOut["municipio-detencion"] = _capMuni(muniDet);
+})();;
 
-// 📄 Construir lista de documentos
-let docs = [
-  { key:"fax", name:`Fax.odt` },
-  { key:"derechos_espanol", name:`derechos_esp.odt` }
-];
+        const fileName = `${sanitizeForFilename(data["Nombre"]||"")} ${sanitizeForFilename(data["APELLIDOS"]||"")} ${fechaStr}.json`.trim() || "resumen.json";
 
-// Edad → amarillas/azules
-if (edad !== null) {
-  if (edad >= 18) docs.unshift({ key:"amarillas", name:`amarillas.odt` });
-  else docs.unshift({ key:"azules", name:`azules.odt` });
-} else {
-  docs.unshift({ key:"azules", name:`azules.odt` });
-  docs.unshift({ key:"amarillas", name:`amarillas.odt` });
-}
-
-// Intérprete → idioma adicional
-const idiomaSel = (intOpt || "").trim().toUpperCase();
-switch (idiomaSel) {
-  case "INGLÉS":
-    docs.push({ key:"derechos_ingles", name:`derechos_ing.odt` });
-    break;
-  case "ÁRABE":
-    docs.push({ key:"derechos_arabe", name:`derechos_arabe.odt` });
-    break;
-  case "ITALIANO":
-    docs.push({ key:"derechos_italiano", name:`derechos_ita.odt` });
-    break;
-  case "RUSO":
-    docs.push({ key:"derechos_ruso", name:`derechos_ruso.odt` });
-    break;
-  case "OTRO":
-    const idiomaOtro = (data["IDIOMA"]||"").trim().toLowerCase();
-    if (idiomaOtro) {
-      const keyCustom = `derechos_${idiomaOtro}`;
-      if (PLANTILLAS[keyCustom]) {
-        docs.push({ key:keyCustom, name:`${keyCustom}_${base}.odt` });
+        // Coordenadas integradas desde Compapol; no se inyectan aquí.
+        await saveBlobJson(JSON.stringify(jsonOut, null, 2), fileName);
+        msg.innerText = "✅ JSON generado y descargado";
+        try{
+          const payload = buildRoaPayloadFromRegistro(data);
+          sessionStorage.setItem('ROA_PAYLOAD', JSON.stringify(payload));
+          const goBtn = document.getElementById('goRoaBtn');
+          if(goBtn){ goBtn.style.display='inline-block'; goBtn.onclick = ()=>{ location.href = RUTA_ROA; }; }
+        }catch(_e){}
+      } catch(err){
+        console.error(err);
+        msg.innerText = "❌ " + (err?.message || err);
       }
     }
-    break;
-}
 
-// 📝 Generar ODTs dentro de la carpeta
-let ok=0;
-for(const d of docs){
-  if(!PLANTILLAS[d.key]) continue;
-  const odt=await generarODTUint8(PLANTILLAS[d.key],dataUpper);
-  folder.file(d.name, odt, {compression:"STORE"});
-  ok++;
-}
+    function importarJSON(){
+      const input = document.getElementById("fileInputJSON");
+      input.value = null;
+      input.click();
+      input.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        try{
+          const text = await file.text();
+          const obj = JSON.parse(text);
+          window.lastImportedObj = obj;
 
-// 🧾 Generar XLSX de resumen
-const hoy = new Date();
-const dd=String(hoy.getDate()).padStart(2,'0');
-const mm=String(hoy.getMonth()+1).padStart(2,'0');
-const yyyy=String(hoy.getFullYear());
-const fechaStr=`${dd}-${mm}-${yyyy}`;
-const excelName = `${sanitizeForFilename(data["Nombre"]||"")} ${sanitizeForFilename(data["APELLIDOS"]||"")} ${fechaStr}.xlsx`.trim();
+          
+          const map = new Map(Object.entries(obj).map(([k,v])=>[String(k).trim().toUpperCase(), v]));
+          const get = (label) => map.get(String(label).toUpperCase()) ?? "";
 
-const filas = [
-  ["Nombre", U(data["Nombre"])],
-  ["Apellidos", U(data["APELLIDOS"])],
-  ["Tipo de documento", U(data["TIPO DOCUMENTO"])],
-  ["Nº Documento", U(data["NºDOCUMENTO"])],
-  ["Sexo", U(data["SEXO"])],
-  ["Nacionalidad", U(data["NACIONALIDAD"])],
-  ["Nombre de los Padres", U(data["Nombre de los Padres"])],
-  ["Fecha de nacimiento", U(data["FECHA DE NACIMIENTO"])],
-  ["Lugar de nacimiento", U(data["LUGAR DE NACIMIENTO"])],
-  ["Domicilio", U(domDisplay)],
-  ["Teléfono", U(telDisplay)],
-  ["Delito", U(data["DELITO"])],
-  ["C.P. Agentes", U(data["C.P. AGENTES"])],
-  ["Diligencias", U(data["DILIGENCIAS"])],
-  ["Instructor", U(data["INSTRUCTOR"])],
-  ["Lugar del hecho", U(data["LUGAR DEL HECHO"])],
-  ["Lugar de la detención", U(data["LUGAR DE LA DETENCIÓN"])],
-  ["Hora del hecho", (document.getElementById('horaHecho')?.value || data["HORA DEL HECHO"] || "").trim()],
-  ["Hora de la detención", (document.getElementById('horaDetencion')?.value || data["HORA DE LA DETENCIÓN"] || "").trim()],
-  ["Breve resumen de los hechos", U(data["BREVE RESUMEN DE LOS HECHOS"])],
-  ["Indicios por los que se detiene", U(data["INDICIOS POR LOS QUE SE DETIENE"])],
-  ["Abogado", U(data["ABOGADO"])],
-  ["Comunicarse con", U(data["COMUNICARSE CON:"])],
-  ["Informar de detención", U(data["INFORMAR DE DETENCION"])],
-  ["Intérprete", U(interpreteDisplay)],
-  ["Médico", U(data["MEDICO"])],
-  ["Consulado", U(data["CONSULADO"])],
-  ["Indicativo", U(data["Indicativo"])],
-  ["Fecha de generación", U(data["FECHA_GENERACION"])]
-];
+          const normalizeHour = (v) => {
+            const s = String(v||"").trim();
+            const m = s.match(/^(\d{1,2})[:hH\.](\d{2})/);
+            if (m) { const hh = m[1].padStart(2,'0'); return `${hh}:${m[2]}`; }
+            return "";
+          };
 
-const xlsx = await generarXLSXUint8(filas,"Resumen");
-folder.file(excelName || `resumen_${base}.xlsx`, xlsx, {compression:"STORE"});
+          
+          (function(){
+            
+            let raw = get("Delito");
+            if (!raw && ("Delito" in obj)) raw = obj["Delito"]; 
+            if (!raw) raw = obj["DELITOS"] || obj["Delitos"] || obj["delitos"]; 
 
-// 🎁 Guardar ZIP
-const blob=await zip.generateAsync({type:"blob",compression:"STORE"});
-await saveBlob(blob, `${base}.zip`);
-msg.innerText=`✅ ZIP generado (${ok} ODT + XLSX)`;
-      }catch(err){
-        console.error(err);
-        msg.innerText="❌ "+(err?.message||err);
-      }
+            let lista = [];
+            if (Array.isArray(raw)) {
+              lista = raw.map(v => String(v||'').trim()).filter(Boolean);
+            } else if (typeof raw === 'string') {
+              lista = raw ? raw.split(/\s*,\s*|\s+y\s+/i).map(v=>v.trim()).filter(Boolean) : [];
+            }
+
+            if (typeof delitosElegidos === 'undefined') { window.delitosElegidos = []; }
+            
+            try { delitosElegidos.splice(0, delitosElegidos.length, ...lista); } catch(_) { window.delitosElegidos = lista.slice(); }
+            try { if (typeof renderDelitos === 'function') renderDelitos(); } catch(_) {}
+          })();
+
+          
+          const setByName = (nameAttr, value) => {
+            const el = document.querySelector(`[name="${nameAttr}"]`);
+            if (!el) return;
+            el.value = value ?? "";
+            el.dispatchEvent(new Event("change"));
+          };
+          setByName("Nombre", get("Nombre"));
+          setByName("APELLIDOS", get("Apellidos"));
+          setByName("NACIONALIDAD", get("Nacionalidad"));
+          setByName("FECHA DE NACIMIENTO", get("Fecha de nacimiento"));
+          setByName("LUGAR DE NACIMIENTO", get("Lugar de nacimiento"));
+          setByName("C.P. AGENTES", get("C.P. Agentes"));
+          setByName("DILIGENCIAS", get("Diligencias"));
+          setByName("INSTRUCTOR", get("Instructor"));
+          setByName("BREVE RESUMEN DE LOS HECHOS", get("Breve resumen de los hechos"));
+          setByName("INDICIOS POR LOS QUE SE DETIENE", get("Indicios por los que se detiene"));
+          setByName("Indicativo", get("Indicativo"));
+          setByName("FECHA_GENERACION", get("Fecha de generación"));
+          
+          setByName("HORA DEL HECHO", normalizeHour(get("Hora del hecho")));
+          setByName("HORA DE LA DETENCIÓN", normalizeHour(get("Hora de la detención")));
+
+          
+          const callSet = (name, val) => { try { setSelectWithInput(name, val); } catch(_) {} };
+          callSet("DOMICILIO_OPCION", get("Domicilio"));
+          callSet("TELÉFONO_OPCION", get("Teléfono"));
+          callSet("NOMBRE_PADRES_OPCION", get("Nombre de los Padres"));
+          callSet("ABOGADO_OPCION", get("Abogado"));
+          callSet("COMUNICARSE CON_OPCION", get("Comunicarse con"));
+          callSet("INFORMAR DE DETENCION_OPCION", get("Informar de detención"));
+          callSet("INTERPRETE_OPCION", get("Intérprete"));
+          callSet("SEXO_OPCION", get("Sexo"));
+          callSet("TIPO DOCUMENTO_OPCION", get("Tipo de documento"));
+
+          (function(){
+            const tipoVal = String(get("Tipo de documento") || "").toUpperCase();
+            const tipoSel = document.getElementById("tipoDocumento");
+            if (tipoSel && (tipoVal === "INDOCUMENTADO" || tipoVal === "INDOCUMENTADA")) {
+              tipoSel.value = tipoVal;
+              tipoSel.dispatchEvent(new Event("change"));
+            }
+          })();
+
+          const tipoSel = document.querySelector('[name="TIPO DOCUMENTO_OPCION"]');
+          const tipoVal = (tipoSel && tipoSel.value) ? String(tipoSel.value).toUpperCase() : "";
+          const num = (tipoVal === "INDOCUMENTADO/A") ? "" : (get("Nº Documento")||"");
+          setByName("NºDOCUMENTO", num);
+
+          
+          callSet("MEDICO", get("Médico"));
+          callSet("CONSULADO", get("Consulado"));
+
+          
+          (function rehidratarLugares_likeDomicilio(){
+            const T = s => String(s||'').trim();
+            const UP = s => T(s).toUpperCase();
+            const splitLugar = (s)=>{
+              s = T(s); if(!s) return {dir:'', muni:''};
+              const p = s.lastIndexOf(',');
+              return (p<0) ? {dir:s, muni:''} : {dir:T(s.slice(0,p)), muni:T(s.slice(p+1))};
+            };
+            
+            function chain3(a,b,c){
+              try{ a(); }catch(_){}
+              requestAnimationFrame(()=>{
+                queueMicrotask(()=>{
+                  try{ b(); }catch(_){}
+                  requestAnimationFrame(()=>{
+                    queueMicrotask(()=>{ try{ c(); }catch(_){ } });
+                  });
+                });
+              });
+            }
+            function rehidratar(kind){
+              const isHecho = (kind==='hecho');
+              const ids = isHecho
+                ? { sel:'munHechoSel', via:'viaHecho', resto:'restoHecho', otro:'munHechoOtro' }
+                : { sel:'munDetSel',  via:'viaDet',   resto:'restoDet',   otro:'munDetOtro'  };
+              
+              const L   = isHecho ? (obj["Lugar del hecho"]||obj["LUGAR DEL HECHO"]||"") : (obj["Lugar de la detención"]||obj["LUGAR DE LA DETENCIÓN"]||obj["LUGAR DE LA DETENCION"]||"");
+              const via = isHecho ? (obj["via-hecho"]||"") : (obj["via-detencion"]||"");
+              const res = isHecho ? (obj["restodireccion-hecho"]||"") : (obj["restodireccion-detencion"]||"");
+              const mun = isHecho ? (obj["municipio-hecho"]||"") : (obj["municipio-detencion"]||"");
+              const {dir:dirFromL, muni:munFromL} = splitLugar(L);
+              const VIA   = T(via || dirFromL);
+              const RESTO = T(res);
+              const MUNI  = T(mun || munFromL);
+              
+              chain3(
+                ()=>{
+                  const sel  = document.getElementById(ids.sel);
+                  const otro = document.getElementById(ids.otro);
+                  if(!sel) return;
+                  const MU = UP(MUNI);
+                  if (MU === 'ADEJE' || MU === 'ARONA'){
+                    sel.value = MU;
+                    if (otro){ otro.value=''; otro.style.display='none'; }
+                  } else if (MU){
+                    sel.value = 'OTRO';
+                    if (otro){ otro.value = MUNI; otro.style.display='block'; otro.dispatchEvent(new Event('input')); }
+                  } else {
+                    sel.value = '';
+                    if (otro){ otro.value=''; otro.style.display='none'; }
+                  }
+                  sel.dispatchEvent(new Event('input'));
+                  sel.dispatchEvent(new Event('change'));
+                },
+                
+                ()=>{
+                  const viaEl = document.getElementById(ids.via);
+                  if (viaEl){
+                    viaEl.style.display = 'block';
+                    viaEl.value = VIA;
+                    viaEl.dispatchEvent(new Event('input'));
+                    viaEl.dispatchEvent(new Event('change'));
+                    try{ viaEl.focus(); }catch(_){}
+                  }
+                },
+                
+                ()=>{
+                  const viaEl   = document.getElementById(ids.via);
+                  const restoEl = document.getElementById(ids.resto);
+                  if (restoEl){
+                    const show = (T(viaEl?.value)||T(RESTO)) ? true : false;
+                    restoEl.style.display = show ? 'block' : 'none';
+                    restoEl.value = RESTO;
+                    restoEl.dispatchEvent(new Event('input'));
+                    restoEl.dispatchEvent(new Event('change'));
+                    try{ restoEl.blur(); }catch(_){}
+                  }
+                }
+              );
+            }
+            try{ rehidratar('hecho'); }catch(_){}
+            try{ rehidratar('det'); }catch(_){}
+          })();
+
+          
+          const panel = document.getElementById("message");
+          if (panel){
+            panel.innerText = "✅ JSON importado y formulario rellenado";
+            setTimeout(()=>{ if (panel.innerText === "✅ JSON importado y formulario rellenado") panel.innerText=""; }, 3000);
+          }
+        }catch(err){
+          console.error(err);
+          document.getElementById("message").innerText = "❌ Error al importar JSON: " + (err?.message || err);
+        }
+      };
     }
   </script>
 <script>
-document.addEventListener("DOMContentLoaded", function () {
-  const hoy = new Date();
-  const dia = String(hoy.getDate()).padStart(2, '0');
-  const mes = String(hoy.getMonth() + 1).padStart(2, '0');
-  const anio = hoy.getFullYear();
-  const fecha = `${dia}/${mes}/${anio}`;
+  document.addEventListener("DOMContentLoaded", function () {
+    const hoy = new Date();
+    const dia = String(hoy.getDate()).padStart(2, '0');
+    const mes = String(hoy.getMonth() + 1).padStart(2, '0');
+    const anio = hoy.getFullYear();
+    const fecha = `${dia}/${mes}/${anio}`;
 
-  const inputFecha = document.getElementById("fechaGeneracion");
-  if (inputFecha && !inputFecha.value) {
-    inputFecha.value = fecha;
+    const inputFecha = document.getElementById("fechaGeneracion");
+    if (inputFecha && !inputFecha.value) {
+      inputFecha.value = fecha;
+    }
+  });
+  </script>
+<div id="marca-registro">
+    103<br/>
+    JBN<br/>
+    486<br/>
+    TFS
+  </div>
+<script>
+
+(function(){
+  function norm(s){
+    return String(s||"")
+      .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+      .toUpperCase();
   }
-});
+  function contieneMunicipio(v){
+    return /\b(ARONA|ADEJE)\b/.test(norm(v));
+  }
+  function avisar(input){
+    const v = input.value;
+    if (!v) return;
+    if (contieneMunicipio(v)) return;
+    const panel = document.getElementById('message');
+    if (panel){
+      panel.textContent = `ℹ️ Recuerda indicar ARONA o ADEJE en "${input.name}" si procede.`;
+      panel.style.color = '#ffcc66';
+      setTimeout(()=>{ if(panel.textContent.startsWith('ℹ️ Recuerda')) panel.textContent=''; }, 4000);
+    }
+    const prev = input.style.outline;
+    input.style.outline = '2px solid orange';
+    setTimeout(()=>{ input.style.outline = prev || ''; }, 2000);
+  }
+  function bind(){
+    const hecho = document.querySelector('[name="LUGAR DEL HECHO"]');
+    const det   = document.querySelector('[name="LUGAR DE LA DETENCIÓN"]');
+    if (hecho) hecho.addEventListener('blur', ()=>avisar(hecho), { passive:true });
+    if (det)   det.addEventListener('blur', ()=>avisar(det),   { passive:true });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind);
+  else bind();
+})();
+  </script>
+<script>
+
+(function(){
+  const panel = document.getElementById('message');
+  if (!panel) return;
+  let timer = null;
+  function scheduleClear(){
+    if (timer) { clearTimeout(timer); timer = null; }
+    const txt = (panel.textContent||'').trim();
+    if (!txt) return;
+    timer = setTimeout(()=>{ panel.textContent = ''; }, 3000);
+  }
+  const obs = new MutationObserver(scheduleClear);
+  obs.observe(panel, { childList:true, characterData:true, subtree:true });
+  scheduleClear();
+})();
+  </script>
+<script>
+
+(function(){
+  const inp = document.querySelector('[name="DILIGENCIAS"]');
+  if (!inp) return;
+  function yy(){
+    const f = document.getElementById('fechaGeneracion')?.value || '';
+    const m = f.match(/(\d{4})$/);
+    const year = m ? Number(m[1]) : new Date().getFullYear();
+    return String(year % 100).padStart(2,'0');
+  }
+  function normalizar(){
+    let v = (inp.value||'').trim();
+    if (!v) return;
+    v = v.replace(/\s+/g,'');
+    const m = v.match(/^(\d{1,5})(?:\/(\d{2}))?$/);
+    if (!m){
+      alert('Formato de Diligencias inválido. Usa: 1–5 dígitos + "/" + dos dígitos. Ej: 2345/'+yy());
+      setTimeout(()=>inp.focus(), 0);
+      return;
+    }
+    const num = m[1];
+    const suf = m[2];
+    // Si faltan los dos dígitos, autocompletar con el año (yy) por defecto.
+    inp.value = num + '/' + (suf || yy());
+  }
+  inp.addEventListener('blur', normalizar, { passive:true });
+})();
+  </script>
+<script>
+
+(function () {
+  const U = s => String(s||'').trim();
+  const H = v => { const m = U(v).match(/^(\d{1,2})[:hH\.](\d{2})/); return m ? `${m[1].padStart(2,'0')}:${m[2]}` : ""; };
+  const D = s => { s = U(s); if(!s) return ''; let m = s.match(/^([0-3]?\d)[\/\-]([0-1]?\d)[\/\-](\d{4})$/); if(m) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`; m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/); if(m) return s; m = s.match(/^(\d{4})[\/](\d{1,2})[\/](\d{1,2})$/); if(m) return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`; return ''; };
+  const PL = s => { s=U(s); if(!s) return {via:'',muni:''}; const p=s.lastIndexOf(','); return p<0?{via:s,muni:''}:{via:s.slice(0,p).trim(), muni:s.slice(p+1).trim()}; };
+  const SSI = (n,v)=>{ try{ setSelectWithInput(n,v); }catch(_){} };
+  const SB = (n,v)=>{ const el=document.querySelector(`[name="${n}"]`); if(el){ el.value=v??''; el.dispatchEvent(new Event('change')); } };
+  const ESV = (sel,val)=>{
+    if(!sel){return}
+    const s=U(val); if(!s){ sel.value=''; sel.dispatchEvent(new Event('change')); return; }
+    let o=[...sel.options].find(x=>x.value===s)||[...sel.options].find(x=>x.value.toUpperCase()===s.toUpperCase());
+    if(!o){ o=document.createElement('option'); o.value=s; o.textContent=s; sel.appendChild(o); }
+    sel.value=o.value; sel.dispatchEvent(new Event('change'));
+  };
+  window.importarJSON = function(){
+    const input = document.getElementById("fileInputJSON");
+    input.value = null; input.click();
+    input.onchange = async (e)=>{
+      const f = e.target.files && e.target.files[0]; if(!f) return;
+      try{
+        const obj = JSON.parse(await f.text());
+        const M = new Map(Object.entries(obj).map(([k,v])=>[String(k).trim().toUpperCase(), v]));
+        const G = k => M.get(String(k).toUpperCase()) ?? "";
+
+        
+        (function(){
+          let raw = G("Delito");
+          if (!raw && ("Delito" in obj)) raw = obj["Delito"];
+          if (!raw) raw = obj["DELITOS"] || obj["Delitos"] || obj["delitos"];
+          let lista = [];
+          if (Array.isArray(raw)) lista = raw.map(v => String(v||'').trim()).filter(Boolean);
+          else if (typeof raw === 'string') lista = raw ? raw.split(/\s*,\s*|\s+y\s+/i).map(v=>v.trim()).filter(Boolean) : [];
+          if (typeof delitosElegidos === 'undefined') { window.delitosElegidos = []; }
+          try { delitosElegidos.splice(0, delitosElegidos.length, ...lista); } catch(_) { window.delitosElegidos = lista.slice(); }
+          try { if (typeof renderDelitos === 'function') renderDelitos(); } catch(_) {}
+        })();
+
+        
+        SB("Nombre", G("Nombre"));
+        SB("APELLIDOS", G("Apellidos"));
+        SB("NACIONALIDAD", G("Nacionalidad"));
+        SB("FECHA DE NACIMIENTO", D(G("Fecha de nacimiento") || G("FECHA DE NACIMIENTO")));
+        SB("LUGAR DE NACIMIENTO", G("Lugar de nacimiento"));
+        SB("C.P. AGENTES", G("C.P. Agentes"));
+        SB("DILIGENCIAS", G("Diligencias"));
+        SB("INSTRUCTOR", G("Instructor"));
+        SB("LUGAR DEL HECHO", G("Lugar del hecho"));
+        SB("LUGAR DE LA DETENCIÓN", G("Lugar de la detención"));
+        SB("BREVE RESUMEN DE LOS HECHOS", G("Breve resumen de los hechos"));
+        SB("INDICIOS POR LOS QUE SE DETIENE", G("Indicios por los que se detiene"));
+        SB("Indicativo", G("Indicativo"));
+        SB("FECHA_GENERACION", G("Fecha de generación"));
+        SB("HORA DEL HECHO", H(G("Hora del hecho")));
+        SB("HORA DE LA DETENCIÓN", H(G("Hora de la detención")));
+
+        
+        SSI("DOMICILIO_OPCION", G("Domicilio"));
+        SSI("TELÉFONO_OPCION", G("Teléfono"));
+        SSI("NOMBRE_PADRES_OPCION", G("Nombre de los Padres"));
+        SSI("ABOGADO_OPCION", G("Abogado"));
+        SSI("COMUNICARSE CON_OPCION", G("Comunicarse con"));
+        SSI("INFORMAR DE DETENCION_OPCION", G("Informar de detención"));
+        SSI("INTERPRETE_OPCION", G("Intérprete"));
+        SSI("SEXO_OPCION", G("Sexo"));
+        SSI("TIPO DOCUMENTO_OPCION", G("Tipo de documento"));
+        SSI("MEDICO", G("Médico"));
+        SSI("CONSULADO", G("Consulado"));
+
+        
+        (function(){
+          const t = document.querySelector('[name="TIPO DOCUMENTO_OPCION"]');
+          SB("NºDOCUMENTO", (t && String(t.value).toUpperCase()==="INDOCUMENTADO/A") ? "" : (G("Nº Documento")||""));
+        })();
+
+        
+        (function(){
+          const gv=(...ks)=>{ for(const k of ks){ if(k in obj && U(obj[k])) return U(obj[k]); const up=k.toUpperCase(),lo=k.toLowerCase(); if(up in obj && U(obj[up])) return U(obj[up]); if(lo in obj && U(obj[lo])) return U(obj[lo]); } return ''; };
+          const pais = gv('pais-nacimiento','PAÍS-NACIMIENTO','PAIS-NACIMIENTO','PAÍS DE NACIMIENTO','PAIS','País');
+          const prov = gv('provincia-nacimiento');
+          const mun  = gv('municipio-nacimiento');
+          const paisInp=document.getElementById('paisNacimiento'), provSel=document.getElementById('provNacimiento'), munInp=document.getElementById('munNacimiento');
+          if(paisInp && pais){ paisInp.value=pais; paisInp.dispatchEvent(new Event('input')); paisInp.dispatchEvent(new Event('change')); }
+          if(provSel && prov){ ESV(provSel,prov); }
+          if(munInp && mun){ munInp.value=mun; munInp.dispatchEvent(new Event('input')); munInp.dispatchEvent(new Event('change')); }
+          try{ if(typeof recomputeLugarNacimiento==='function') recomputeLugarNacimiento(); }catch(_){}
+
+          const domSel=document.getElementById('domicilioOpcion'), provD=document.getElementById('provDomicilio'), munD=document.getElementById('munDomicilio'), dirD=document.getElementById('direccionDomicilio');
+          const pD=gv('provincia-domicilio'), mD=gv('municipio-domicilio'), dD=gv('direccion-domicilio','Domicilio','DOMICILIO');
+          if((pD||mD||dD) && domSel && domSel.value!=='APORTA'){ domSel.value='APORTA'; domSel.dispatchEvent(new Event('change')); }
+          if(provD && pD){ ESV(provD,pD); }
+          if(munD && mD){ munD.value=mD; munD.dispatchEvent(new Event('input')); munD.dispatchEvent(new Event('change')); }
+          if(dirD && dD){ dirD.value=dD; dirD.dispatchEvent(new Event('input')); }
+        })();
+
+        
+        (function(){
+          const Tt = s => String(s||'').trim();
+          const Up = s => Tt(s).toUpperCase();
+          const splitLugar = (s)=>{
+            s = Tt(s); if(!s) return {dir:'', muni:''};
+            const p = s.lastIndexOf(',');
+            return (p<0) ? {dir:s, muni:''} : {dir:Tt(s.slice(0,p)), muni:Tt(s.slice(p+1))};
+          };
+          function setMunicipio(selId, otroId, muniVal){
+            const sel = document.getElementById(selId);
+            const otro = document.getElementById(otroId);
+            if(!sel) return;
+            const MU = Up(muniVal);
+            if (MU === 'ADEJE' || MU === 'ARONA'){
+              sel.value = MU;
+              if (otro){ otro.style.display = 'none'; otro.value = ''; }
+            } else if (MU){
+              sel.value = 'OTRO';
+              if (otro){ otro.style.display = 'block'; otro.value = muniVal; }
+            } else {
+              sel.value = '';
+              if (otro){ otro.style.display = 'none'; otro.value = ''; }
+            }
+            
+          }
+          function setViaResto(viaId, restoId, viaVal, restoVal){
+            const viaEl = document.getElementById(viaId);
+            const resEl = document.getElementById(restoId);
+            if(viaEl){
+              viaEl.style.display = 'block';
+              viaEl.value = Tt(viaVal);
+            }
+            if(resEl){
+              resEl.style.display = 'block';
+              resEl.value = Tt(restoVal);
+            }
+          }
+          
+          (function(){
+            const L   = obj["Lugar del hecho"] || obj["LUGAR DEL HECHO"] || "";
+            const via = obj["via-hecho"] || "";
+            const res = obj["restodireccion-hecho"] || "";
+            const mun = obj["municipio-hecho"] || "";
+            const fromL = splitLugar(L);
+            setMunicipio('munHechoSel','munHechoOtro', mun || fromL.muni);
+            setViaResto('viaHecho','restoHecho', via || fromL.dir, res);
+          })();
+          
+          (function(){
+            const L   = obj["Lugar de la detención"] || obj["LUGAR DE LA DETENCIÓN"] || obj["LUGAR DE LA DETENCION"] || "";
+            const via = obj["via-detencion"] || "";
+            const res = obj["restodireccion-detencion"] || "";
+            const mun = obj["municipio-detencion"] || "";
+            const fromL = splitLugar(L);
+            setMunicipio('munDetSel','munDetOtro', mun || fromL.muni);
+            setViaResto('viaDet','restoDet', via || fromL.dir, res);
+          })();
+        })();
+
+        const msg=document.getElementById("message"); if(msg) msg.innerText="✅ JSON importado y formulario rellenado";
+      }catch(err){
+        console.error(err);
+        const msg=document.getElementById("message"); if(msg) msg.innerText="❌ Error al importar JSON: "+(err?.message||err);
+      }
+    };
+  };
+})();
 </script>
-	<div id="marca-registro">
-  103<br>
-  JBN<br>
-  486<br>
-  TFS<br>
-  CNP
-
-  
-</div>
+<script id="glass-autowrap">
+(function(){
+  function shouldWrap(el){
+    if(!el) return false;
+    if(el.disabled || el.readOnly) return false;
+    if(el.tagName === 'INPUT'){
+      const t = (el.getAttribute('type')||'text').toLowerCase();
+      if(['hidden','file'].includes(t)) return false;
+    }
+    return true;
+  }
+  function wrap(el){
+    if(el.closest('.glass-wrap')) return; 
+    const wrap = document.createElement('div');
+    wrap.className = 'glass-wrap';
+    el.classList.add('glass-field');
+    el.parentNode.insertBefore(wrap, el);
+    wrap.appendChild(el);
+  }
+  function apply(scope){
+    const nodes = scope.querySelectorAll('select, input, textarea');
+    nodes.forEach(n => { if(shouldWrap(n)) wrap(n); });
+  }
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){ apply(document.body); }, { once: true });
+  } else {
+    apply(document.body);
+  }
+})();
+</script>
 </body>
-
 </html>
+
 
 
 
