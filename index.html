@@ -2055,8 +2055,73 @@ function validarIndicativo(){
   }
 })();
 </script>
+	<script>
+// 👉 Función única para validar contra un datalist
+function alertaListaById(inputId, datalistId, mensaje){
+  const inp = document.getElementById(inputId);
+  if (!inp) return;
+
+  inp.addEventListener('blur', () => {
+    const v = (inp.value || "").trim().toUpperCase();
+    if (!v) return; // no molestar si está vacío
+
+    const opciones = [...document.querySelectorAll(`#${datalistId} option`)]
+      .map(o => (o.value || "").trim().toUpperCase());
+
+    if (!opciones.includes(v)){
+      alert("⚠️ " + mensaje);
+    }
+  });
+}
+
+// 👉 Activar todas las validaciones simples al cargar
+document.addEventListener('DOMContentLoaded', () => {
+  // Nacionalidad
+  alertaListaById(
+    "nacionalidadInput",
+    "listaNacionalidad",
+    "La nacionalidad debe coincidir con un país del listado."
+  );
+
+  // País de nacimiento
+  alertaListaById(
+    "paisNacimiento",
+    "listaPaisNacimiento",
+    "El país de nacimiento debe coincidir con un país del listado."
+  );
+
+  // Municipio nacimiento
+  alertaListaById(
+    "munNacimiento",
+    "listaMunNacimiento",
+    "El municipio de nacimiento debe coincidir con el listado."
+  );
+
+  // Municipio domicilio
+  alertaListaById(
+    "munDomicilio",
+    "listaMunDomicilio",
+    "El municipio del domicilio debe coincidir con el listado."
+  );
+
+  // Calle HECHO
+  alertaListaById(
+    "viaHecho",
+    "listaViaHecho",
+    "La vía del hecho no coincide con ninguna vía del callejero."
+  );
+
+  // Calle DETENCIÓN
+  alertaListaById(
+    "viaDet",
+    "listaViaDet",
+    "La vía de la detención no coincide con ninguna vía del callejero."
+  );
+});
+</script>
 </body>
 </html>
+
 
 
 
