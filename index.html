@@ -681,11 +681,19 @@ if (campo === 'dir'  && dirDom)  { dirDom.style.display='block'; }
   const restoD = document.getElementById('restoDet');
   if (!viaH && !viaD) return;
 
-  
+  // ── datalists para las vías ──────────────────────────────────────
   let dlH = document.getElementById('listaViaHecho');
-  if (!dlH){ dlH = document.createElement('datalist'); dlH.id = 'listaViaHecho'; document.body.appendChild(dlH); }
+  if (!dlH){
+    dlH = document.createElement('datalist');
+    dlH.id = 'listaViaHecho';
+    document.body.appendChild(dlH);
+  }
   let dlD = document.getElementById('listaViaDet');
-  if (!dlD){ dlD = document.createElement('datalist'); dlD.id = 'listaViaDet'; document.body.appendChild(dlD); }
+  if (!dlD){
+    dlD = document.createElement('datalist');
+    dlD.id = 'listaViaDet';
+    document.body.appendChild(dlD);
+  }
   if (viaH) viaH.setAttribute('list','listaViaHecho');
   if (viaD) viaD.setAttribute('list','listaViaDet');
 
@@ -708,6 +716,80 @@ if (campo === 'dir'  && dirDom)  { dirDom.style.display='block'; }
     return DB;
   }
 
+  function buildOptionsForMunicipio(muni, frag){
+    const U = (s)=>String(s||'').trim().toUpperCase();
+    const src = (DB && DB[U(muni)]) ? DB[U(muni)] : null;
+    if (!src) return [];
+    const f = String(frag||'').trim().toLowerCase();
+    const out = [];
+    Object.keys(src).forEach(tipo=>{
+      const arr = Array.isArray(src[tipo]) ? src[tipo] : [];
+      for (const nombre of arr){
+        // normalizamos: tipo + nombre, evitando duplicar el tipo si ya viene
+        const base = String(nombre).replace(new RegExp('^'+tipo+'\\s+','i'), '');
+        const full = `${tipo} ${base}`; // "CALLE Mayor", "AVENIDA República..."
+        if (!f || full.toLowerCase().includes(f)) out.push(full);
+      }
+    });
+    out.sort((a,b)=>a.localeCompare(b,'es'));
+    return out;
+  }
+
+  function renderList(dl, items){
+    if (!dl) return;
+    dl.innerHTML = '';
+    const frag = document.createDocumentFragment();
+    for (const v of items){
+      const o = document.createElement('option');
+      o.value = v;
+      frag.appendChild(o);
+    }
+    dl.appendChild(frag);
+  }
+
+  // ── UNIÓN ADEJE + ARONA para sugerencias rápidas ─────────────────
+  function unionCalles(frag){
+    const a = buildOptionsForMunicipio('ADEJE', frag || null);
+    const b = buildOptionsForMunicipio('ARONA', frag || null);
+    const set = new Set([...(a||[]), ...(b||[])]);
+    return Array.from(set).sort((x,y)=>x.localeCompare(y,'es'));
+  }
+
+  function refreshHecho(frag){
+    if (dlH) renderList(dlH, unionCalles(frag));
+  }
+  function refreshDet(frag){
+    if (dlD) renderList(dlD, unionCalles(frag));
+  }
+
+  loadDB().then(()=>{
+    // helpers globales para otras partes del script (validación, etc.)
+    try {
+      window.callejeroOpciones = (muni, frag) => buildOptionsForMunicipio(muni, frag);
+      window.esCalleValida = (muni, via) => {
+        const opts = buildOptionsForMunicipio(muni, null);
+        const U = s=>String(s||'').trim().toUpperCase();
+        return opts.some(o => U(o) === U(via));
+      };
+    } catch(_) { }
+
+    // inicial
+    refreshHecho();
+    refreshDet();
+
+    // si cambia municipio, refrescamos sugerencias (aunque se usa unión ADEJE/ARONA)
+    if (selH) {
+      selH.addEventListener('change', ()=>refreshHecho(viaH ? viaH.value : ''), {passive:true});
+    }
+    if (selD) {
+      selD.addEventListener('change', ()=>refreshDet(viaD ? viaD.value : ''), {passive:true});
+    }
+
+    // filtrar conforme escribe la vía
+    if (viaH) viaH.addEventListener('input', ()=>refreshHecho(viaH.value), {passive:true});
+    if (viaD) viaD.addEventListener('input', ()=>refreshDet(viaD.value), {passive:true});
+  });
+})();
   function buildOptionsForMunicipio(muni, frag){
     const U = (s)=>String(s||'').trim().toUpperCase();
     const src = (DB && DB[U(muni)]) ? DB[U(muni)] : null;
@@ -2009,6 +2091,7 @@ function validarIndicativo(){
 </script>
 </body>
 </html>
+
 
 
 
