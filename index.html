@@ -12,7 +12,7 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta charset="utf-8"/>
-<title>Registro de Detenidos</title>
+<title>Registro Detenidos</title>
 <script src="./js/estilo_registro.js"></script>
 </head>
 <body>
@@ -671,12 +671,11 @@ if (campo === 'dir'  && dirDom)  { dirDom.style.display='block'; }
 })();
 </script>
 <script>
-
 (function callesMunicipales(){
-  const viaH = document.getElementById('viaHecho');
-  const viaD = document.getElementById('viaDet');
-  const selH = document.getElementById('munHechoSel');
-  const selD = document.getElementById('munDetSel');
+  const viaH   = document.getElementById('viaHecho');
+  const viaD   = document.getElementById('viaDet');
+  const selH   = document.getElementById('munHechoSel');
+  const selD   = document.getElementById('munDetSel');
   const restoH = document.getElementById('restoHecho');
   const restoD = document.getElementById('restoDet');
   if (!viaH && !viaD) return;
@@ -698,6 +697,7 @@ if (campo === 'dir'  && dirDom)  { dirDom.style.display='block'; }
   if (viaD) viaD.setAttribute('list','listaViaDet');
 
   let DB = null;
+  let DBloaded = false;
 
   async function loadDB(){
     if (DB) return DB;
@@ -725,9 +725,8 @@ if (campo === 'dir'  && dirDom)  { dirDom.style.display='block'; }
     Object.keys(src).forEach(tipo=>{
       const arr = Array.isArray(src[tipo]) ? src[tipo] : [];
       for (const nombre of arr){
-        // normalizamos: tipo + nombre, evitando duplicar el tipo si ya viene
         const base = String(nombre).replace(new RegExp('^'+tipo+'\\s+','i'), '');
-        const full = `${tipo} ${base}`; // "CALLE Mayor", "AVENIDA República..."
+        const full = `${tipo} ${base}`;
         if (!f || full.toLowerCase().includes(f)) out.push(full);
       }
     });
@@ -747,7 +746,6 @@ if (campo === 'dir'  && dirDom)  { dirDom.style.display='block'; }
     dl.appendChild(frag);
   }
 
-  // ── UNIÓN ADEJE + ARONA para sugerencias rápidas ─────────────────
   function unionCalles(frag){
     const a = buildOptionsForMunicipio('ADEJE', frag || null);
     const b = buildOptionsForMunicipio('ARONA', frag || null);
@@ -756,14 +754,20 @@ if (campo === 'dir'  && dirDom)  { dirDom.style.display='block'; }
   }
 
   function refreshHecho(frag){
-    if (dlH) renderList(dlH, unionCalles(frag));
+    if (!dlH) return;
+    renderList(dlH, unionCalles(frag));
   }
   function refreshDet(frag){
-    if (dlD) renderList(dlD, unionCalles(frag));
+    if (!dlD) return;
+    renderList(dlD, unionCalles(frag));
   }
 
-  loadDB().then(()=>{
-    // helpers globales para otras partes del script (validación, etc.)
+  async function ensureLoaded(){
+    if (DBloaded) return;
+    await loadDB();
+    DBloaded = true;
+
+    // helpers globales para validación
     try {
       window.callejeroOpciones = (muni, frag) => buildOptionsForMunicipio(muni, frag);
       window.esCalleValida = (muni, via) => {
@@ -771,91 +775,24 @@ if (campo === 'dir'  && dirDom)  { dirDom.style.display='block'; }
         const U = s=>String(s||'').trim().toUpperCase();
         return opts.some(o => U(o) === U(via));
       };
-    } catch(_) { }
+    } catch(_){}
 
-    // inicial
-    refreshHecho();
-    refreshDet();
-
-    // si cambia municipio, refrescamos sugerencias (aunque se usa unión ADEJE/ARONA)
-    if (selH) {
-      selH.addEventListener('change', ()=>refreshHecho(viaH ? viaH.value : ''), {passive:true});
-    }
-    if (selD) {
-      selD.addEventListener('change', ()=>refreshDet(viaD ? viaD.value : ''), {passive:true});
-    }
-
-    // filtrar conforme escribe la vía
-    if (viaH) viaH.addEventListener('input', ()=>refreshHecho(viaH.value), {passive:true});
-    if (viaD) viaD.addEventListener('input', ()=>refreshDet(viaD.value), {passive:true});
-  });
-})();
-  function buildOptionsForMunicipio(muni, frag){
-    const U = (s)=>String(s||'').trim().toUpperCase();
-    const src = (DB && DB[U(muni)]) ? DB[U(muni)] : null;
-    if (!src) return [];
-    const f = String(frag||'').trim().toLowerCase();
-    const out = [];
-    Object.keys(src).forEach(tipo=>{
-      const arr = Array.isArray(src[tipo]) ? src[tipo] : [];
-      for (const nombre of arr){
-        
-        const base = String(nombre).replace(new RegExp('^'+tipo+'\\s+','i'), '');
-        const full = `${tipo} ${base}`; 
-        if (!f || full.toLowerCase().includes(f)) out.push(full);
-      }
-    });
-    out.sort((a,b)=>a.localeCompare(b,'es'));
-    return out;
+    refreshHecho(viaH ? viaH.value : '');
+    refreshDet(viaD ? viaD.value : '');
   }
 
-  function renderList(dl, items){
-    if (!dl) return;
-    dl.innerHTML = '';
-    const frag = document.createDocumentFragment();
-    for (const v of items){
-      const o = document.createElement('option');
-      o.value = v;
-      frag.appendChild(o);
-    }
-    dl.appendChild(frag);
-  }
+  // ── disparar carga al enfocar cualquier campo relevante ──────────
+  if (viaH)   viaH.addEventListener('focus',  ()=>{ ensureLoaded(); }, { once:true });
+  if (selH)   selH.addEventListener('focus',  ()=>{ ensureLoaded(); }, { once:true });
+  if (restoH) restoH.addEventListener('focus',()=>{ ensureLoaded(); }, { once:true });
 
-  
-  
+  if (viaD)   viaD.addEventListener('focus',  ()=>{ ensureLoaded(); }, { once:true });
+  if (selD)   selD.addEventListener('focus',  ()=>{ ensureLoaded(); }, { once:true });
+  if (restoD) restoD.addEventListener('focus',()=>{ ensureLoaded(); }, { once:true });
 
-  
-    function unionCalles(frag){
-    const a = buildOptionsForMunicipio('ADEJE', frag || null);
-    const b = buildOptionsForMunicipio('ARONA', frag || null);
-    const set = new Set([...(a||[]), ...(b||[])]);
-    return Array.from(set).sort((x,y)=>x.localeCompare(y,'es'));
-  }
-  function refreshHecho(frag){ if (dlH) renderList(dlH, unionCalles(frag)); }
-  function refreshDet(frag){  if (dlD) renderList(dlD, unionCalles(frag)); }
-
-  loadDB().then(()=>{
-    
-    try {
-      window.callejeroOpciones = (muni, frag) => buildOptionsForMunicipio(muni, frag);
-      window.esCalleValida = (muni, via) => {
-        const opts = buildOptionsForMunicipio(muni, null);
-        const U = s=>String(s||'').trim().toUpperCase();
-        return opts.some(o => U(o) === U(via));
-      };
-    } catch(_) {  }
-    refreshHecho();
-    refreshDet();
-    if (selH) {
-      selH.addEventListener('change', refreshHecho, {passive:true});
-    }
-    if (selD) {
-      selD.addEventListener('change', refreshDet, {passive:true});
-    }
-
-    if (viaH) viaH.addEventListener('input', ()=>refreshHecho(viaH.value), {passive:true});
-    if (viaD) viaD.addEventListener('input', ()=>refreshDet(viaD.value), {passive:true});
-  });
+  // ── filtrado dinámico (solo después de cargar DB) ────────────────
+  if (viaH) viaH.addEventListener('input', ()=>{ if (DBloaded) refreshHecho(viaH.value); }, {passive:true});
+  if (viaD) viaD.addEventListener('input', ()=>{ if (DBloaded) refreshDet(viaD.value); }, {passive:true});
 })();
 </script>
 <div class="field-card" style="color: lightgreen;"><label>Hora del hecho</label><input id="horaHecho" name="HORA DEL HECHO" required="" type="time"/></div>
@@ -2091,6 +2028,7 @@ function validarIndicativo(){
 </script>
 </body>
 </html>
+
 
 
 
