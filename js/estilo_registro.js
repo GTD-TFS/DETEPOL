@@ -402,7 +402,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const starLayer = document.createElement("div");
   starLayer.className = "star-layer";
   document.body.appendChild(starLayer);
-  const STAR_COUNT = 42;
+  const STAR_COUNT = 22;
   for (let i = 0; i < STAR_COUNT; i++) {
     const s = document.createElement("div");
     s.className = "star";
